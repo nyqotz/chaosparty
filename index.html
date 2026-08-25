@@ -29,7 +29,7 @@
     <!-- Schermata 2: Profilo (Nickname e Selfie) -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
-        <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+        <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3 z'/></svg>">
         <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
         <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="margin-bottom: 15px; color: #aaa; width: 100%;">
         <button class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
@@ -59,26 +59,34 @@
         };
 
         function joinRoom() {
-            alert("1. Pulsante cliccato!");
-
             roomCode = document.getElementById('pinInput').value;
             if(roomCode.length !== 4) {
                 alert('Inserisci un PIN valido a 4 cifre.');
                 return;
             }
 
-            alert("2. PIN valido: " + roomCode + ", provo il login su PlayFab...");
+            // Controllo se la libreria PlayFab è effettivamente disponibile
+            if (typeof PlayFabClientApi === 'undefined') {
+                alert('ERRORE: La libreria di PlayFab non è stata caricata sul telefono!');
+                return;
+            }
 
-            PlayFabClientApi.LoginWithCustomID({
-                CustomId: 'phone_' + Math.random().toString(36).substring(2),
-                CreateAccount: true
-            }, function(response) {
-                alert("3. Login PlayFab riuscito con successo!");
-                document.getElementById('screen-pin').classList.remove('active');
-                document.getElementById('screen-profile').classList.add('active');
-            }, function(error) {
-                alert('ERRORE PLAYFAB: ' + JSON.stringify(error));
-            });
+            alert('Invio dati a PlayFab in corso...');
+
+            try {
+                PlayFabClientApi.LoginWithCustomID({
+                    CustomId: 'phone_' + Math.random().toString(36).substring(2),
+                    CreateAccount: true
+                }, function(response) {
+                    alert('SUCCESSO! Connesso a PlayFab.');
+                    document.getElementById('screen-pin').classList.remove('active');
+                    document.getElementById('screen-profile').classList.add('active');
+                }, function(error) {
+                    alert('ERRORE PLAYFAB: ' + JSON.stringify(error));
+                });
+            } catch (e) {
+                alert('ECCEZIONE JAVASCRIPT: ' + e.message);
+            }
         }
 
         function previewFile() {
@@ -99,26 +107,35 @@
                 return;
             }
 
-            PlayFabClientApi.AddSharedGroupMembers({
-                SharedGroupId: roomCode,
-                PlayFabIds: [PlayFab.settings.playFabId]
-            }, function(res) {
-                let playerData = {};
-                playerData[PlayFab.settings.playFabId] = nickname;
-                
-                PlayFabClientApi.UpdateSharedGroupData({
-                    SharedGroupId: roomCode,
-                    Data: playerData
-                }, function(updateRes) {
-                    document.getElementById('screen-profile').classList.remove('active');
-                    document.getElementById('screen-lobby').classList.add('active');
-                }, function(err) {
-                    alert('Errore nel salvataggio del profilo.');
-                });
+            if (typeof PlayFabClientApi === 'undefined') {
+                alert('ERRORE: PlayFab non disponibile.');
+                return;
+            }
 
-            }, function(err) {
-                alert('Impossibile trovare la stanza con questo PIN. Controlla che sia attiva sulla TV.');
-            });
+            try {
+                PlayFabClientApi.AddSharedGroupMembers({
+                    SharedGroupId: roomCode,
+                    PlayFabIds: [PlayFab.settings.playFabId]
+                }, function(res) {
+                    let playerData = {};
+                    playerData[PlayFab.settings.playFabId] = nickname;
+                    
+                    PlayFabClientApi.UpdateSharedGroupData({
+                        SharedGroupId: roomCode,
+                        Data: playerData
+                    }, function(updateRes) {
+                        document.getElementById('screen-profile').classList.remove('active');
+                        document.getElementById('screen-lobby').classList.add('active');
+                    }, function(err) {
+                        alert('Errore salvataggio profilo: ' + JSON.stringify(err));
+                    });
+
+                }, function(err) {
+                    alert('Impossibile trovare la stanza con questo PIN: ' + JSON.stringify(err));
+                });
+            } catch (e) {
+                alert('CRASH PROFILO: ' + e.message);
+            }
         }
 
         function toggleReady() {
