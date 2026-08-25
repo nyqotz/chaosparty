@@ -48,7 +48,6 @@
         let avatarBase64 = '';
         let isReadyState = false;
 
-        // Legge automaticamente il PIN dall'URL del QR code
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const roomParam = urlParams.get('room');
@@ -57,7 +56,6 @@
             }
         };
 
-        // 1. Login nativo su PlayFab tramite REST API
         async function joinRoom() {
             roomCode = document.getElementById('pinInput').value;
             if(roomCode.length !== 4) {
@@ -83,7 +81,6 @@
                     sessionTicket = data.data.SessionTicket;
                     playFabId = data.data.PlayFabId;
 
-                    // Passa alla schermata del profilo
                     document.getElementById('screen-pin').classList.remove('active');
                     document.getElementById('screen-profile').classList.add('active');
                 } else {
@@ -105,7 +102,6 @@
             if (file) { reader.readAsDataURL(file); }
         }
 
-        // 2. Registrazione del profilo e entrata nella stanza
         async function saveProfile() {
             const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) {
@@ -114,8 +110,18 @@
             }
 
             try {
-                // Aggiunge l'utente al gruppo condiviso (la stanza)
-                const addRes = await fetch(`https://${titleId}.playfabapi.com/Client/AddSharedGroupMembers`, {
+                // 1. Crea la stanza se non esiste già (o procede se esiste)
+                await fetch(`https://${titleId}.playfabapi.com/Client/CreateSharedGroup`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Authorization': sessionTicket
+                    },
+                    body: JSON.stringify({ SharedGroupId: roomCode })
+                });
+
+                // 2. Aggiunge il telefono alla stanza
+                await fetch(`https://${titleId}.playfabapi.com/Client/AddSharedGroupMembers`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -127,13 +133,7 @@
                     })
                 });
 
-                const addData = await addRes.json();
-                if (addData.code !== 200) {
-                    alert('Impossibile trovare la stanza con questo PIN. Controlla che sia attiva sulla TV.');
-                    return;
-                }
-
-                // Salva il nickname nei dati condivisi della stanza
+                // 3. Salva il nickname nella stanza
                 let playerData = {};
                 playerData[playFabId] = nickname;
 
@@ -149,12 +149,12 @@
                     })
                 });
 
-                // Passa alla schermata della lobby d'attesa
+                // 4. Passa alla schermata di attesa
                 document.getElementById('screen-profile').classList.remove('active');
                 document.getElementById('screen-lobby').classList.add('active');
 
             } catch (err) {
-                alert('Errore di connessione durante l\'ingresso: ' + err.message);
+                alert('Errore durante l\'ingresso: ' + err.message);
             }
         }
 
