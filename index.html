@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chaos Party Controller</title>
-    <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
+    <!-- NESSUNA LIBRERIA ESTERNA: Tutto nativo per evitare blocchi del browser -->
     <style>
         * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -17,7 +17,6 @@
 </head>
 <body>
 
-    <!-- Schermata 1: Inserimento PIN -->
     <div id="screen-pin" class="screen active">
         <h1 style="color: #FF0055; font-size: 22px;">CHAOS PARTY</h1>
         <p style="font-size: 13px; color: #aaa;">Inserisci il PIN della stanza:</p>
@@ -25,7 +24,6 @@
         <button class="btn" onclick="joinRoom()">AVANTI</button>
     </div>
 
-    <!-- Schermata 2: Profilo -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
         <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
@@ -34,14 +32,12 @@
         <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
-    <!-- Schermata 3: Lobby -->
     <div id="screen-lobby" class="screen">
         <h2 style="font-size: 16px; color: #00FF66;">SEI DENTRO!</h2>
         <p style="font-size: 13px; color: #aaa;">Tutti pronti per iniziare?</p>
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
-    <!-- Schermata 4: Squadra -->
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 22px; color: #FF0055;">SQUADRA</h1>
         <p id="teamSubtitle" style="font-size: 14px; color: #aaa;"></p>
@@ -53,8 +49,9 @@
     </div>
 
     <script>
-        PlayFab.settings.titleId = "71EAC";
+        const titleId = "71EAC";
         let roomCode = '';
+        let sessionTicket = '';
         let playFabId = '';
         let avatarBase64 = '';
         let isReady = false;
@@ -67,20 +64,32 @@
             if(r) { document.getElementById('pinInput').value = r; }
         };
 
-        function joinRoom() {
+        async function joinRoom() {
             roomCode = document.getElementById('pinInput').value.trim();
             if(roomCode.length !== 4) { alert('Inserisci un PIN valido a 4 cifre.'); return; }
 
-            PlayFabClientApi.LoginWithCustomID({
-                CustomId: 'phone_' + Math.random().toString(36).substring(2),
-                CreateAccount: true
-            }, function(res) {
-                playFabId = res.data.PlayFabId;
-                document.getElementById('screen-pin').classList.remove('active');
-                document.getElementById('screen-profile').classList.add('active');
-            }, function(err) {
-                alert('Errore Login PlayFab: ' + JSON.stringify(err));
-            });
+            try {
+                const response = await fetch(`https://${titleId}.playfabapi.com/Client/LoginWithCustomID`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        TitleId: titleId,
+                        CustomId: 'phone_' + Math.random().toString(36).substring(2),
+                        CreateAccount: true
+                    })
+                });
+                const data = await response.json();
+                if (data.code === 200) {
+                    sessionTicket = data.data.SessionTicket;
+                    playFabId = data.data.PlayFabId;
+                    document.getElementById('screen-pin').classList.remove('active');
+                    document.getElementById('screen-profile').classList.add('active');
+                } else {
+                    alert('Errore Login PlayFab: ' + JSON.stringify(data));
+                }
+            } catch (err) {
+                alert('Errore di connessione: ' + err.message);
+            }
         }
 
         function previewFile() {
@@ -106,55 +115,83 @@
             reader.readAsDataURL(file);
         }
 
-        function saveProfile() {
+        async function saveProfile() {
             const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname!'); return; }
 
-            PlayFabClientApi.ExecuteCloudScript({
-                FunctionName: "JoinRoom",
-                FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
-                GeneratePlayStreamEvent: true
-            }, function(res) {
-                if (res.data.FunctionResult && res.data.FunctionResult.success) {
+            const btn = document.getElementById('enterBtn');
+            btn.innerText = "ATTENDI...";
+            btn.style.backgroundColor = "#555";
+
+            try {
+                const response = await fetch(`https://${titleId}.playfabapi.com/Client/ExecuteCloudScript`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({
+                        FunctionName: "JoinRoom",
+                        FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
+                        GeneratePlayStreamEvent: true
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.code === 200 && data.data.FunctionResult && data.data.FunctionResult.success) {
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-lobby').classList.add('active');
                     pollInterval = setInterval(checkTeamAssignment, 2000);
                 } else {
-                    alert('Errore logico CloudScript: ' + JSON.stringify(res.data));
+                    btn.innerText = "ENTRA IN PARTITA";
+                    btn.style.backgroundColor = "#00FF66";
+                    alert('Errore CloudScript: ' + (data.data.Error ? data.data.Error.Message : JSON.stringify(data)));
                 }
-            }, function(err) {
-                alert('Errore chiamata CloudScript: ' + JSON.stringify(err));
-            });
+            } catch (err) {
+                btn.innerText = "ENTRA IN PARTITA";
+                btn.style.backgroundColor = "#00FF66";
+                alert('Errore Rete: ' + err.message);
+            }
         }
 
-        function toggleReady() {
+        async function toggleReady() {
             isReady = !isReady;
             const btn = document.getElementById('readyBtn');
             btn.innerText = isReady ? 'ANNULLA' : 'SONO PRONTO!';
             btn.style.backgroundColor = isReady ? '#FF0055' : '#00FF66';
 
-            PlayFabClientApi.ExecuteCloudScript({
-                FunctionName: "SetReady",
-                FunctionParameter: { roomId: roomCode, ready: isReady }
-            }, function(res) {}, function(err) {
-                alert('Errore tasto pronto: ' + JSON.stringify(err));
-            });
+            try {
+                await fetch(`https://${titleId}.playfabapi.com/Client/ExecuteCloudScript`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({
+                        FunctionName: "SetReady",
+                        FunctionParameter: { roomId: roomCode, ready: isReady }
+                    })
+                });
+            } catch(err) {
+                alert('Errore Rete Pronto: ' + err.message);
+            }
         }
 
-        function checkTeamAssignment() {
-            PlayFabClientApi.GetSharedGroupData({
-                SharedGroupId: roomCode,
-                Keys: [playFabId]
-            }, function(res) {
-                if (res.data && res.data.Data && res.data.Data[playFabId]) {
-                    let profile = JSON.parse(res.data.Data[playFabId].Value);
+        async function checkTeamAssignment() {
+            try {
+                const response = await fetch(`https://${titleId}.playfabapi.com/Client/GetSharedGroupData`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({
+                        SharedGroupId: roomCode,
+                        Keys: [playFabId]
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.code === 200 && data.data.Data && data.data.Data[playFabId]) {
+                    let profile = JSON.parse(data.data.Data[playFabId].Value);
                     if (profile.team && profile.team !== "") {
                         clearInterval(pollInterval);
                         myTeamColor = profile.team;
                         showTeamScreen(profile.team, profile.isCaptain);
                     }
                 }
-            }, function(err) {});
+            } catch(err) {}
         }
 
         function showTeamScreen(teamColor, isCaptain) {
@@ -167,20 +204,30 @@
             }
         }
 
-        function submitTeamName() {
+        async function submitTeamName() {
             let teamName = document.getElementById('teamNameInput').value.trim();
             if(!teamName) { alert('Inserisci un nome!'); return; }
 
-            PlayFabClientApi.ExecuteCloudScript({
-                FunctionName: "SetTeamName",
-                FunctionParameter: { roomId: roomCode, teamName: teamName, teamColor: myTeamColor }
-            }, function(res) {
-                alert('Nome squadra salvato!');
-                document.getElementById('captainSection').style.display = 'none';
-                document.getElementById('teamSubtitle').innerText = "Nome squadra: " + teamName;
-            }, function(err) {
-                alert('Errore nome squadra: ' + JSON.stringify(err));
-            });
+            try {
+                const response = await fetch(`https://${titleId}.playfabapi.com/Client/ExecuteCloudScript`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({
+                        FunctionName: "SetTeamName",
+                        FunctionParameter: { roomId: roomCode, teamName: teamName, teamColor: myTeamColor }
+                    })
+                });
+                const data = await response.json();
+                if (data.code === 200) {
+                    alert('Nome squadra salvato!');
+                    document.getElementById('captainSection').style.display = 'none';
+                    document.getElementById('teamSubtitle').innerText = "Nome squadra: " + teamName;
+                } else {
+                    alert('Errore Salvataggio: ' + JSON.stringify(data));
+                }
+            } catch(err) {
+                alert('Errore Rete Nome: ' + err.message);
+            }
         }
     </script>
 </body>
