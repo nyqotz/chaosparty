@@ -110,18 +110,8 @@
             }
 
             try {
-                // 1. Crea la stanza se non esiste già (o procede se esiste)
-                await fetch(`https://${titleId}.playfabapi.com/Client/CreateSharedGroup`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-Authorization': sessionTicket
-                    },
-                    body: JSON.stringify({ SharedGroupId: roomCode })
-                });
-
-                // 2. Aggiunge il telefono alla stanza
-                await fetch(`https://${titleId}.playfabapi.com/Client/AddSharedGroupMembers`, {
+                // 1. Aggiunge il telefono alla stanza creata da Unity
+                const addRes = await fetch(`https://${titleId}.playfabapi.com/Client/AddSharedGroupMembers`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -133,7 +123,13 @@
                     })
                 });
 
-                // 3. Salva il nickname nella stanza
+                const addData = await addRes.json();
+                if (addData.code !== 200) {
+                    alert('Impossibile trovare la stanza. Controlla che il PIN sia corretto e attivo sulla TV.');
+                    return;
+                }
+
+                // 2. Salva il nickname nella stanza
                 let playerData = {};
                 playerData[playFabId] = nickname;
 
@@ -149,12 +145,12 @@
                     })
                 });
 
-                // 4. Passa alla schermata di attesa
+                // 3. Passa alla lobby
                 document.getElementById('screen-profile').classList.remove('active');
                 document.getElementById('screen-lobby').classList.add('active');
 
             } catch (err) {
-                alert('Errore durante l\'ingresso: ' + err.message);
+                alert('Errore di connessione: ' + err.message);
             }
         }
 
