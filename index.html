@@ -110,7 +110,7 @@
         }
 
         function saveProfile() {
-            const nickname = document.getElementById('nicknameInput').value.trim();
+            const nickname = document.getElementById('nicknameInput>().value.trim();
             if(!nickname) { alert('Inserisci un nickname!'); return; }
 
             const btn = document.getElementById('enterBtn');
@@ -122,13 +122,21 @@
                 FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
                 GeneratePlayStreamEvent: true
             }, function(cloudRes) {
+                // Controlla se la CloudScript ha restituito un errore interno
+                if (cloudRes.data && cloudRes.data.Error) {
+                    btn.innerText = "ENTRA IN PARTITA";
+                    btn.style.backgroundColor = "#00FF66";
+                    alert("Errore CloudScript: " + cloudRes.data.Error.Message);
+                    return;
+                }
+
                 document.getElementById('screen-profile').classList.remove('active');
                 document.getElementById('screen-lobby').classList.add('active');
                 pollInterval = setInterval(checkTeamAssignment, 2000);
             }, function(err) { 
                 btn.innerText = "ENTRA IN PARTITA";
                 btn.style.backgroundColor = "#00FF66";
-                alert('Errore ingresso: ' + (err.errorMessage || JSON.stringify(err))); 
+                alert('Errore di rete: ' + (err.errorMessage || JSON.stringify(err))); 
             });
         }
 
