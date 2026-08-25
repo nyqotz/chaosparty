@@ -17,23 +17,31 @@
 </head>
 <body>
 
-    <!-- Schermata Profilo -->
-    <div id="screen-profile" class="screen active">
+    <!-- Schermata 1: Inserimento PIN -->
+    <div id="screen-pin" class="screen active">
+        <h1 style="color: #FF0055; font-size: 22px;">CHAOS PARTY</h1>
+        <p style="font-size: 13px; color: #aaa;">Inserisci il PIN della stanza:</p>
+        <input type="number" id="pinInput" placeholder="----" maxlength="4">
+        <button class="btn" onclick="joinRoom()">AVANTI</button>
+    </div>
+
+    <!-- Schermata 2: Profilo (Nickname e Selfie) -->
+    <div id="screen-profile" class="screen">
         <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
         <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
         <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
         <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="margin-bottom: 15px; color: #aaa; width: 100%;">
-        <button class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
+        <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
-    <!-- Schermata Lobby & Pronto -->
+    <!-- Schermata 3: Lobby d'attesa -->
     <div id="screen-lobby" class="screen">
         <h2 style="font-size: 16px; color: #00FF66;">SEI DENTRO!</h2>
         <p style="font-size: 13px; color: #aaa;">Tutti pronti per iniziare?</p>
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
-    <!-- Schermata Assegnazione Squadra -->
+    <!-- Schermata 4: Assegnazione Squadra -->
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 22px; color: #FF0055;">SQUADRA</h1>
         <p id="teamSubtitle" style="font-size: 14px; color: #aaa;"></p>
@@ -57,8 +65,26 @@
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
-            roomCode = urlParams.get('room');
+            const r = urlParams.get('room');
+            if(r) { document.getElementById('pinInput').value = r; }
         };
+
+        function joinRoom() {
+            roomCode = document.getElementById('pinInput').value.trim();
+            if(roomCode.length !== 4) { alert('Inserisci il PIN di 4 cifre visibile sulla TV.'); return; }
+
+            PlayFabClientApi.LoginWithCustomID({
+                CustomId: 'phone_' + Math.random().toString(36).substring(2),
+                CreateAccount: true
+            }, function(res) {
+                sessionTicket = res.data.SessionTicket;
+                playFabId = res.data.PlayFabId;
+                document.getElementById('screen-pin').classList.remove('active');
+                document.getElementById('screen-profile').classList.add('active');
+            }, function(err) {
+                alert('Errore di login: ' + err.errorMessage);
+            });
+        }
 
         function previewFile() {
             const file = document.getElementById('fileInput').files[0];
@@ -86,26 +112,24 @@
         function saveProfile() {
             const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname!'); return; }
-            if(!roomCode) { alert('Scansiona nuovamente il QR code dalla TV.'); return; }
 
-            PlayFabClientApi.LoginWithCustomID({
-                CustomId: 'phone_' + Math.random().toString(36).substring(2),
-                CreateAccount: true
-            }, function(res) {
-                sessionTicket = res.data.SessionTicket;
-                playFabId = res.data.PlayFabId;
+            const btn = document.getElementById('enterBtn');
+            btn.innerText = "ATTENDI...";
+            btn.style.backgroundColor = "#555";
 
-                PlayFabClientApi.ExecuteCloudScript({
-                    FunctionName: "JoinRoom",
-                    FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
-                    GeneratePlayStreamEvent: true
-                }, function(cloudRes) {
-                    document.getElementById('screen-profile').classList.remove('active');
-                    document.getElementById('screen-lobby').classList.add('active');
-                    // Inizia a controllare se le squadre sono state assegnate
-                    pollInterval = setInterval(checkTeamAssignment, 2000);
-                }, function(err) { alert('Errore ingresso: ' + err.errorMessage); });
-            }, function(err) { alert('Login fallito: ' + err.errorMessage); });
+            PlayFabClientApi.ExecuteCloudScript({
+                FunctionName: "JoinRoom",
+                FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
+                GeneratePlayStreamEvent: true
+            }, function(cloudRes) {
+                document.getElementById('screen-profile').classList.remove('active');
+                document.getElementById('screen-lobby').classList.add('active');
+                pollInterval = setInterval(checkTeamAssignment, 2000);
+            }, function(err) { 
+                btn.innerText = "ENTRA IN PARTITA";
+                btn.style.backgroundColor = "#00FF66";
+                alert('Errore ingresso: ' + (err.errorMessage || JSON.stringify(err))); 
+            });
         }
 
         function toggleReady() {
