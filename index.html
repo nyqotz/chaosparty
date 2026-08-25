@@ -12,6 +12,7 @@
         input[type="text"], input[type="number"] { width: 100%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #333; background: #2a2a2a; color: white; margin-bottom: 15px; }
         .btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #00FF66; color: #121212; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
         .avatar-preview { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid #8B4513; margin: 0 auto 15px auto; display: block; background: #2a2a2a; }
+        #debugLog { margin-top: 15px; font-size: 11px; color: #ff5555; word-break: break-all; text-align: left; background: #111; padding: 8px; border-radius: 5px; max-height: 80px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -22,6 +23,7 @@
         <p style="font-size: 13px; color: #aaa;">Inserisci il PIN della stanza:</p>
         <input type="number" id="pinInput" placeholder="----" maxlength="4">
         <button class="btn" onclick="joinRoom()">AVANTI</button>
+        <div id="debugLog">Pronto...</div>
     </div>
 
     <!-- Schermata 2: Profilo (Nickname e Selfie) -->
@@ -45,6 +47,12 @@
         let sessionTicket = '';
         let avatarBase64 = '';
 
+        function log(msg) {
+            console.log(msg);
+            const box = document.getElementById('debugLog');
+            if(box) box.innerText = msg;
+        }
+
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const roomParam = urlParams.get('room');
@@ -56,10 +64,11 @@
         async function joinRoom() {
             roomCode = document.getElementById('pinInput').value;
             if(roomCode.length !== 4) {
-                alert('Inserisci un PIN valido a 4 cifre.');
+                log('Errore: Inserisci un PIN a 4 cifre.');
                 return;
             }
 
+            log('Connessione a PlayFab in corso...');
             const customId = 'phone_' + Math.random().toString(36).substring(2);
 
             try {
@@ -76,13 +85,14 @@
                 const data = await response.json();
                 if (data.code === 200) {
                     sessionTicket = data.data.SessionTicket;
+                    log('Login riuscito!');
                     document.getElementById('screen-pin').classList.remove('active');
                     document.getElementById('screen-profile').classList.add('active');
                 } else {
-                    alert('Errore di login: ' + (data.errorMessage || 'Fallito'));
+                    log('Errore PlayFab: ' + (data.errorMessage || JSON.stringify(data)));
                 }
             } catch (err) {
-                alert('Errore di rete: ' + err.message);
+                log('Errore di rete: ' + err.message);
             }
         }
 
