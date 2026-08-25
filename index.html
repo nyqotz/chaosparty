@@ -68,7 +68,7 @@
                 return;
             }
 
-            log('Connessione a PlayFab in corso...');
+            log('Connessione a PlayFab...');
             const customId = 'phone_' + Math.random().toString(36).substring(2);
 
             try {
@@ -96,15 +96,38 @@
             }
         }
 
+        // Comprime l'immagine prima di trasformarla in Base64
         function previewFile() {
-            const preview = document.getElementById('avatarPreview');
             const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+
             const reader = new FileReader();
-            reader.onloadend = function () {
-                avatarBase64 = reader.result;
-                preview.src = avatarBase64;
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 120; // Ridimensiona a massimo 120x120 pixel
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Converte in JPEG compresso al 70% di qualità (peserà pochissimi KB)
+                    avatarBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                    document.getElementById('avatarPreview').src = avatarBase64;
+                }
+                img.src = e.target.result;
             }
-            if (file) { reader.readAsDataURL(file); }
+            reader.readAsDataURL(file);
         }
 
         async function saveProfile() {
@@ -113,6 +136,8 @@
                 alert('Inserisci un nickname!');
                 return;
             }
+
+            log('Invio dati al server...');
 
             try {
                 const response = await fetch(`https://${titleId}.playfabapi.com/Client/ExecuteCloudScript`, {
