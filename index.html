@@ -9,21 +9,15 @@
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .screen { display: none; width: 90%; max-width: 350px; background: #1e1e1e; padding: 25px; border-radius: 15px; border: 3px solid #333; text-align: center; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
         .active { display: block; }
-        input[type="text"], input[type="number"] { width: 100%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #333; background: #2a2a2a; color: white; margin-bottom: 15px; }
+        input[type="text"] { width: 100%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #333; background: #2a2a2a; color: white; margin-bottom: 15px; }
         .btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #00FF66; color: #121212; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
         .avatar-preview { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid #8B4513; margin: 0 auto 15px auto; display: block; background: #2a2a2a; }
     </style>
 </head>
 <body>
 
-    <div id="screen-pin" class="screen active">
-        <h1 style="color: #FF0055; font-size: 22px;">CHAOS PARTY</h1>
-        <p style="font-size: 13px; color: #aaa;">Inserisci il PIN della stanza:</p>
-        <input type="number" id="pinInput" placeholder="----" maxlength="4">
-        <button class="btn" onclick="joinRoom()">AVANTI</button>
-    </div>
-
-    <div id="screen-profile" class="screen">
+    <!-- Schermata Profilo diretta -->
+    <div id="screen-profile" class="screen active">
         <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
         <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
         <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
@@ -31,35 +25,28 @@
         <button class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
+    <!-- Schermata d'attesa -->
     <div id="screen-lobby" class="screen">
         <h2 style="font-size: 16px; color: #00FF66;">SEI DENTRO!</h2>
         <p style="font-size: 14px; color: #aaa;">Guarda lo schermo principale per vedere la tua squadra.</p>
-        <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
     <script>
-        let roomCode = '';
-        let playerId = 'player_' + Math.random().toString(36).substring(2);
+        let blobUrl = '';
+        let playerId = localStorage.getItem('cp_pid');
+        if(!playerId) {
+            playerId = 'p_' + Math.random().toString(36).substring(2);
+            localStorage.setItem('cp_pid', playerId);
+        }
         let avatarBase64 = '';
-        let isReadyState = false;
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const roomParam = urlParams.get('room');
-            if(roomParam) {
-                document.getElementById('pinInput').value = roomParam;
+            blobUrl = urlParams.get('blob');
+            if(!blobUrl) {
+                alert('Errore: Scansiona il QR code aggiornato dalla TV.');
             }
         };
-
-        function joinRoom() {
-            roomCode = document.getElementById('pinInput').value;
-            if(roomCode.length !== 4) {
-                alert('Inserisci un PIN valido a 4 cifre.');
-                return;
-            }
-            document.getElementById('screen-pin').classList.remove('active');
-            document.getElementById('screen-profile').classList.add('active');
-        }
 
         function previewFile() {
             const preview = document.getElementById('avatarPreview');
@@ -78,48 +65,36 @@
                 alert('Inserisci un nickname!');
                 return;
             }
+            if(!blobUrl) {
+                alert('URL della stanza non valido.');
+                return;
+            }
 
             try {
-                // Sincronizzazione tramite JSON Bin pubblico basato sul PIN della stanza
-                let binUrl = `https://api.npoint.io/chaosparty_${roomCode}`;
-                
-                // Legge la stanza attuale
-                let response = await fetch(binUrl);
+                // Legge lo stato attuale della stanza cloud
+                let res = await fetch(blobUrl);
                 let roomData = {};
-                if (response.ok) {
-                    roomData = await response.json();
+                if(res.ok) {
+                    roomData = await res.json();
                 }
 
-                // Aggiunge o aggiorna il giocatore
+                // Inserisce i dati del giocatore
                 roomData[playerId] = {
                     nickname: nickname,
                     avatar: avatarBase64 || ""
                 };
 
-                // Salva i dati aggiornati sul cloud
-                await fetch(binUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                // Aggiorna il cloud in tempo reale
+                await fetch(blobUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify(roomData)
                 });
 
                 document.getElementById('screen-profile').classList.remove('active');
                 document.getElementById('screen-lobby').classList.add('active');
-
             } catch (err) {
                 alert('Errore di connessione: ' + err.message);
-            }
-        }
-
-        function toggleReady() {
-            isReadyState = !isReadyState;
-            const btn = document.getElementById('readyBtn');
-            if(isReadyState) {
-                btn.innerText = 'ANNULLA';
-                btn.style.backgroundColor = '#FF0055';
-            } else {
-                btn.innerText = 'SONO PRONTO!';
-                btn.style.backgroundColor = '#00FF66';
             }
         }
     </script>
