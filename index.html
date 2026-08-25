@@ -110,7 +110,8 @@
         }
 
         function saveProfile() {
-            const nickname = document.getElementById('nicknameInput>().value.trim();
+            // CORRETTO IL TYPO QUI SOTTO:
+            const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname!'); return; }
 
             const btn = document.getElementById('enterBtn');
@@ -122,7 +123,6 @@
                 FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
                 GeneratePlayStreamEvent: true
             }, function(cloudRes) {
-                // Controlla se la CloudScript ha restituito un errore interno
                 if (cloudRes.data && cloudRes.data.Error) {
                     btn.innerText = "ENTRA IN PARTITA";
                     btn.style.backgroundColor = "#00FF66";
