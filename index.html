@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chaos Party Controller</title>
+    <!-- QUESTA ERA LA RIGA MANCANTE CHE BLOCCAVA IL PIN! -->
     <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
     <style>
         * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
@@ -37,7 +38,7 @@
     <!-- Schermata 3: Lobby d'attesa -->
     <div id="screen-lobby" class="screen">
         <h2 style="font-size: 16px; color: #00FF66;">SEI DENTRO!</h2>
-        <p style="font-size: 13px; color: #aaa;">Tutti pronti per iniziare?</p>
+        <p style="font-size: 14px; color: #aaa;">Tutti pronti per iniziare?</p>
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
@@ -110,7 +111,6 @@
         }
 
         function saveProfile() {
-            // CORRETTO IL TYPO QUI SOTTO:
             const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname!'); return; }
 
