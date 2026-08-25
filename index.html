@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chaos Party Controller</title>
-    <!-- Carichiamo la libreria PlayFab in modo locale e sicuro -->
-    <script src="./PlayFabClientApi.js"></script>
     <style>
         * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -43,13 +41,14 @@
     </div>
 
     <script>
-        // Il tuo Title ID di PlayFab
-        PlayFab.settings.titleId = "71EAC"; 
-
+        const titleId = "71EAC"; 
         let roomCode = '';
+        let sessionTicket = '';
+        let playFabId = '';
         let avatarBase64 = '';
         let isReadyState = false;
 
+        // Legge automaticamente il PIN dall'URL del QR code
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const roomParam = urlParams.get('room');
@@ -58,27 +57,41 @@
             }
         };
 
-        function joinRoom() {
+        // 1. Login nativo su PlayFab tramite REST API
+        async function joinRoom() {
             roomCode = document.getElementById('pinInput').value;
             if(roomCode.length !== 4) {
                 alert('Inserisci un PIN valido a 4 cifre.');
                 return;
             }
 
-            if (typeof PlayFabClientApi === 'undefined') {
-                alert('Errore critico: libreria PlayFab non trovata.');
-                return;
-            }
+            const customId = 'phone_' + Math.random().toString(36).substring(2);
 
-            PlayFabClientApi.LoginWithCustomID({
-                CustomId: 'phone_' + Math.random().toString(36).substring(2),
-                CreateAccount: true
-            }, function(response) {
-                document.getElementById('screen-pin').classList.remove('active');
-                document.getElementById('screen-profile').classList.add('active');
-            }, function(error) {
-                alert('Errore di connessione: ' + (error.errorMessage || JSON.stringify(error)));
-            });
+            try {
+                const response = await fetch(`https://${titleId}.playfabapi.com/Client/LoginWithCustomID`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        TitleId: titleId,
+                        CustomId: customId,
+                        CreateAccount: true
+                    })
+                });
+
+                const data = await response.json();
+                if (data.code === 200) {
+                    sessionTicket = data.data.SessionTicket;
+                    playFabId = data.data.PlayFabId;
+
+                    // Passa alla schermata del profilo
+                    document.getElementById('screen-pin').classList.remove('active');
+                    document.getElementById('screen-profile').classList.add('active');
+                } else {
+                    alert('Errore PlayFab: ' + (data.errorMessage || 'Impossibile effettuare il login.'));
+                }
+            } catch (err) {
+                alert('Errore di rete: ' + err.message);
+            }
         }
 
         function previewFile() {
@@ -92,33 +105,57 @@
             if (file) { reader.readAsDataURL(file); }
         }
 
-        function saveProfile() {
+        // 2. Registrazione del profilo e entrata nella stanza
+        async function saveProfile() {
             const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) {
                 alert('Inserisci un nickname!');
                 return;
             }
 
-            PlayFabClientApi.AddSharedGroupMembers({
-                SharedGroupId: roomCode,
-                PlayFabIds: [PlayFab.settings.playFabId]
-            }, function(res) {
-                let playerData = {};
-                playerData[PlayFab.settings.playFabId] = nickname;
-                
-                PlayFabClientApi.UpdateSharedGroupData({
-                    SharedGroupId: roomCode,
-                    Data: playerData
-                }, function(updateRes) {
-                    document.getElementById('screen-profile').classList.remove('active');
-                    document.getElementById('screen-lobby').classList.add('active');
-                }, function(err) {
-                    alert('Errore nel salvataggio del profilo.');
+            try {
+                // Aggiunge l'utente al gruppo condiviso (la stanza)
+                const addRes = await fetch(`https://${titleId}.playfabapi.com/Client/AddSharedGroupMembers`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Authorization': sessionTicket
+                    },
+                    body: JSON.stringify({
+                        SharedGroupId: roomCode,
+                        PlayFabIds: [playFabId]
+                    })
                 });
 
-            }, function(err) {
-                alert('Impossibile trovare la stanza con questo PIN. Controlla che sia attiva sulla TV.');
-            });
+                const addData = await addRes.json();
+                if (addData.code !== 200) {
+                    alert('Impossibile trovare la stanza con questo PIN. Controlla che sia attiva sulla TV.');
+                    return;
+                }
+
+                // Salva il nickname nei dati condivisi della stanza
+                let playerData = {};
+                playerData[playFabId] = nickname;
+
+                await fetch(`https://${titleId}.playfabapi.com/Client/UpdateSharedGroupData`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Authorization': sessionTicket
+                    },
+                    body: JSON.stringify({
+                        SharedGroupId: roomCode,
+                        Data: playerData
+                    })
+                });
+
+                // Passa alla schermata della lobby d'attesa
+                document.getElementById('screen-profile').classList.remove('active');
+                document.getElementById('screen-lobby').classList.add('active');
+
+            } catch (err) {
+                alert('Errore di connessione durante l\'ingresso: ' + err.message);
+            }
         }
 
         function toggleReady() {
