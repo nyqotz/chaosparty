@@ -38,10 +38,8 @@
     </div>
 
     <script>
-        const titleId = "71EAC"; 
         let roomCode = '';
-        let sessionTicket = '';
-        let playFabId = '';
+        let playerId = 'player_' + Math.random().toString(36).substring(2);
         let avatarBase64 = '';
         let isReadyState = false;
 
@@ -53,34 +51,14 @@
             }
         };
 
-        async function joinRoom() {
+        function joinRoom() {
             roomCode = document.getElementById('pinInput').value;
             if(roomCode.length !== 4) {
                 alert('Inserisci un PIN valido a 4 cifre.');
                 return;
             }
-
-            const customId = 'phone_' + Math.random().toString(36).substring(2);
-
-            try {
-                const response = await fetch(`https://${titleId}.playfabapi.com/Client/LoginWithCustomID`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ TitleId: titleId, CustomId: customId, CreateAccount: true })
-                });
-
-                const data = await response.json();
-                if (data.code === 200) {
-                    sessionTicket = data.data.SessionTicket;
-                    playFabId = data.data.PlayFabId;
-                    document.getElementById('screen-pin').classList.remove('active');
-                    document.getElementById('screen-profile').classList.add('active');
-                } else {
-                    alert('Errore Login PlayFab: ' + (data.errorMessage || 'Login fallito.'));
-                }
-            } catch (err) {
-                alert('Errore di rete: ' + err.message);
-            }
+            document.getElementById('screen-pin').classList.remove('active');
+            document.getElementById('screen-profile').classList.add('active');
         }
 
         function previewFile() {
@@ -102,33 +80,27 @@
             }
 
             try {
-                // Tenta di aggiungere il telefono alla stanza
-                const addRes = await fetch(`https://${titleId}.playfabapi.com/Client/AddSharedGroupMembers`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
-                });
-
-                const addData = await addRes.json();
+                // Sincronizzazione tramite JSON Bin pubblico basato sul PIN della stanza
+                let binUrl = `https://api.npoint.io/chaosparty_${roomCode}`;
                 
-                // SE FALLISCE, MOSTRIAMO L'ERRORE ESATTO DI PLAYFAB
-                if (addData.code !== 200) {
-                    alert('ERRORE PLAYFAB DETTAGLIATO: ' + (addData.errorMessage || JSON.stringify(addData)));
-                    return;
+                // Legge la stanza attuale
+                let response = await fetch(binUrl);
+                let roomData = {};
+                if (response.ok) {
+                    roomData = await response.json();
                 }
 
-                let profileInfo = {
+                // Aggiunge o aggiorna il giocatore
+                roomData[playerId] = {
                     nickname: nickname,
                     avatar: avatarBase64 || ""
                 };
 
-                let playerData = {};
-                playerData[playFabId] = JSON.stringify(profileInfo);
-
-                await fetch(`https://${titleId}.playfabapi.com/Client/UpdateSharedGroupData`, {
+                // Salva i dati aggiornati sul cloud
+                await fetch(binUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({ SharedGroupId: roomCode, Data: playerData })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(roomData)
                 });
 
                 document.getElementById('screen-profile').classList.remove('active');
