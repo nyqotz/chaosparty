@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chaos Party Controller</title>
+    <!-- Importiamo l'SDK JavaScript ufficiale di PlayFab -->
+    <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
+    <style>
+        * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .screen { display: none; width: 90%; max-width: 350px; background: #1e1e1e; padding: 25px; border-radius: 15px; border: 3px solid #333; text-align: center; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+        .active { display: block; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #333; background: #2a2a2a; color: white; margin-bottom: 15px; }
+        .btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #00FF66; color: #121212; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .avatar-preview { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid #8B4513; margin: 0 auto 15px auto; display: block; background: #2a2a2a; }
+    </style>
+</head>
+<body>
+
+    <!-- Schermata 1: Inserimento PIN -->
+    <div id="screen-pin" class="screen active">
+        <h1 style="color: #FF0055; font-size: 22px;">CHAOS PARTY</h1>
+        <p style="font-size: 13px; color: #aaa;">Inserisci il PIN della stanza:</p>
+        <input type="number" id="pinInput" placeholder="----" maxlength="4">
+        <button class="btn" onclick="joinRoom()">AVANTI</button>
+    </div>
+
+    <!-- Schermata 2: Profilo (Nickname e Selfie) -->
+    <div id="screen-profile" class="screen">
+        <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
+        <img id="avatarPreview" class="avatar-persview avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+        <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
+        <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="margin-bottom: 15px; color: #aaa; width: 100%;">
+        <button class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
+    </div>
+
+    <!-- Schermata 3: Lobby d'attesa -->
+    <div id="screen-lobby" class="screen">
+        <h2 style="font-size: 16px; color: #00FF66;">SEI DENTRO!</h2>
+        <p style="font-size: 14px; color: #aaa;">Guarda lo schermo principale per vedere la tua squadra.</p>
+        <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
+    </div>
+
+    <script>
+        // INCOLLA QUI IL TUO TITLE ID DI PLAYFAB (lo trovi nella dashboard)
+        PlayFab.settings.titleId = "71EAC"; 
+
+        let roomCode = '';
+        let avatarBase64 = '';
+        let isReadyState = false;
+
+        // Legge automaticamente il PIN dall'URL se si inquadra il QR code con il parametro ?room=XXXX
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if(roomParam) {
+                document.getElementById('pinInput').value = roomParam;
+            }
+        };
+
+        function joinRoom() {
+            roomCode = document.getElementById('pinInput').value;
+            if(roomCode.length !== 4) {
+                alert('Inserisci un PIN valido a 4 cifre.');
+                return;
+            }
+
+            // Login anonimo del telefono su PlayFab
+            PlayFabClientApi.LoginWithCustomID({
+                CustomId: 'phone_' + Math.random().toString(36.substring(2)),
+                CreateAccount: true
+            }, function(response) {
+                // Passa alla schermata del profilo
+                document.getElementById('screen-pin').classList.remove('active');
+                document.getElementById('screen-profile').classList.add('active');
+            }, function(error) {
+                alert('Errore di connessione alla stanza.');
+            });
+        }
+
+        function previewFile() {
+            const preview = document.getElementById('avatarPreview');
+            const file = document.getElementById('fileInput').files[0];
+            const reader = new FileReader();
+            reader.onloadend = function () {
+                avatarBase64 = reader.result;
+                preview.src = avatarBase64;
+            }
+            if (file) { reader.readAsDataURL(file); }
+        }
+
+        function saveProfile() {
+            const nickname = document.getElementById('nicknameInput').value.trim();
+            if(!nickname) {
+                alert('Inserisci un nickname!');
+                return;
+            }
+
+            // Aggiunge il giocatore alla stanza condivisa (Shared Group) su PlayFab
+            PlayFabClientApi.AddSharedGroupMembers({
+                SharedGroupId: roomCode,
+                PlayFabIds: [PlayFab.settings.playFabId]
+            }, function(res) {
+                // Salva il nickname nei dati del gruppo
+                let playerData = {};
+                playerData[PlayFab.settings.playFabId] = nickname;
+                
+                PlayFabClientApi.UpdateSharedGroupData({
+                    SharedGroupId: roomCode,
+                    Data: playerData
+                }, function(updateRes) {
+                    document.getElementById('screen-profile').classList.remove('active');
+                    document.getElementById('screen-lobby').classList.add('active');
+                }, function(err) {
+                    alert('Errore nel salvataggio del profilo.');
+                });
+
+            }, function(err) {
+                alert('Impossibile trovare la stanza con questo PIN. Controlla che sia attiva sulla TV.');
+            });
+        }
+
+        function toggleReady() {
+            isReadyState = !isReadyState;
+            const btn = document.getElementById('readyBtn');
+            if(isReadyState) {
+                btn.innerText = 'ANNULLA';
+                btn.style.backgroundColor = '#FF0055';
+            } else {
+                btn.innerText = 'SONO PRONTO!';
+                btn.style.backgroundColor = '#00FF66';
+            }
+        }
+    </script>
+</body>
+</html>
