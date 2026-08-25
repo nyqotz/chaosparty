@@ -59,20 +59,25 @@
         };
 
         function joinRoom() {
+            alert("1. Pulsante cliccato!");
+
             roomCode = document.getElementById('pinInput').value;
             if(roomCode.length !== 4) {
                 alert('Inserisci un PIN valido a 4 cifre.');
                 return;
             }
 
+            alert("2. PIN valido: " + roomCode + ", provo il login su PlayFab...");
+
             PlayFabClientApi.LoginWithCustomID({
                 CustomId: 'phone_' + Math.random().toString(36).substring(2),
                 CreateAccount: true
             }, function(response) {
+                alert("3. Login PlayFab riuscito con successo!");
                 document.getElementById('screen-pin').classList.remove('active');
                 document.getElementById('screen-profile').classList.add('active');
             }, function(error) {
-                alert('Errore di connessione: ' + (error.errorMessage || JSON.stringify(error)));
+                alert('ERRORE PLAYFAB: ' + JSON.stringify(error));
             });
         }
 
