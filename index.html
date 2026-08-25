@@ -53,6 +53,7 @@
         let avatarBase64 = '';
         let isReady = false;
         let pollInterval = null;
+        let myTeamColor = "";
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -82,10 +83,10 @@
             reader.readAsDataURL(file);
         }
 
-        async function saveProfile() {
+        function saveProfile() {
             const nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname!'); return; }
-            if(!roomCode) { alert('PIN stanza mancante.'); return; }
+            if(!roomCode) { alert('Scansiona nuovamente il QR code dalla TV.'); return; }
 
             PlayFabClientApi.LoginWithCustomID({
                 CustomId: 'phone_' + Math.random().toString(36).substring(2),
@@ -128,6 +129,7 @@
                     let profile = JSON.parse(res.data[playFabId].Value);
                     if (profile.team && profile.team !== "") {
                         clearInterval(pollInterval);
+                        myTeamColor = profile.team;
                         showTeamScreen(profile.team, profile.isCaptain);
                     }
                 }
@@ -138,7 +140,7 @@
             document.getElementById('screen-lobby').classList.remove('active');
             document.getElementById('screen-team').classList.add('active');
 
-            document.getElementById('teamTitle').innerText = "SEI NELLA SQUADRA " + teamColor.toUpperCase();
+            document.getElementById('teamTitle').innerText = "SQUADRA " + teamColor.toUpperCase();
             document.getElementById('teamSubtitle').innerText = "Preparati a vincere!";
 
             if (isCaptain) {
@@ -147,16 +149,16 @@
         }
 
         function submitTeamName() {
-            let teamName = document.getElementById('teamNameInput'].value.trim();
+            let teamName = document.getElementById('teamNameInput').value.trim();
             if(!teamName) { alert('Inserisci un nome!'); return; }
 
-            // Determiniamo il colore della squadra in base al testo o salviamo
             PlayFabClientApi.ExecuteCloudScript({
                 FunctionName: "SetTeamName",
-                FunctionParameter: { roomId: roomCode, teamName: teamName, teamColor: "Sinistra" } // Gestibile dinamicamente
+                FunctionParameter: { roomId: roomCode, teamName: teamName, teamColor: myTeamColor } 
             }, function(res) {
                 alert('Nome squadra salvato con successo!');
                 document.getElementById('captainSection').style.display = 'none';
+                document.getElementById('teamSubtitle').innerText = "Nome squadra: " + teamName;
             }, function(err) {});
         }
     </script>
