@@ -27,7 +27,7 @@
     <!-- Schermata 2: Profilo -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
-        <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+        <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3 z'/></svg>">
         <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
         <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="margin-bottom: 15px; color: #aaa; width: 100%;">
         <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
@@ -40,10 +40,10 @@
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
-    <!-- Schermata 4: Squadra -->
+    <!-- Schermata 4: Squadra e Nome Squadra -->
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 22px; color: #FF0055;">SQUADRA</h1>
-        <p id="teamSubtitle" style="font-size: 14px; color: #aaa;"></p>
+        <p id="teamSubtitle" style="font-size: 14px; color: #aaa;">In attesa del nome squadra...</p>
         <div id="captainSection" style="display:none; margin-top: 15px;">
             <p style="font-size: 12px; color: #00FF66;">Sei il Capitano! Scegli il nome:</p>
             <input type="text" id="teamNameInput" placeholder="Nome Squadra" maxlength="15">
@@ -54,15 +54,15 @@
     <!-- Schermata 5: Roulette Minigioco -->
     <div id="screen-roulette" class="screen">
         <h1 style="color: #FF0055; font-size: 20px;">ROULETTE</h1>
-        <p style="font-size: 14px; color: #00FF66; margin-top: 20px;">Estrazione minigioco in corso sulla TV...</p>
+        <p style="font-size: 14px; color: #00FF66; margin-top: 20px;">Estrazione minigioco in corso...</p>
     </div>
 
-    <!-- Schermata 6: Tutorial / Regole con Pulsante Obbligatorio per iOS -->
+    <!-- Schermata 6: Tutorial con Tasto Pronto e Attivazione Giroscopio -->
     <div id="screen-tutorial" class="screen">
         <h1 style="color: #00FF66; font-size: 20px;">TAGLIABOSCHI</h1>
-        <p style="font-size: 13px; color: #aaa; margin: 10px 0;">Regola: Scuota il telefono per tagliare il tronco!</p>
-        <button class="btn" style="background-color: #FF0055; color: white;" onclick="requestMotionPermission()">1. ATTIVA SENSORI</button>
-        <p id="sensorStatus" style="font-size: 12px; color: #ffaa00; margin-top: 10px;">Ticca il tasto sopra per abilitare il movimento!</p>
+        <p style="font-size: 13px; color: #aaa; margin: 10px 0;">Scuota il telefono per tagliare il tronco!</p>
+        <button id="minigameReadyBtn" class="btn" onclick="setMinigameReady()">SONO PRONTO!</button>
+        <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;">Premi pronto per attivare i sensori.</p>
     </div>
 
     <!-- Schermata 7: Minigioco in Corso -->
@@ -80,6 +80,7 @@
         var playFabId = '';
         var avatarBase64 = '';
         var isReady = false;
+        var isMinigameReady = false;
         var pollInterval = null;
         var heartbeatInterval = null;
         var myTeamColor = "";
@@ -174,7 +175,8 @@
                 var nickname = document.getElementById('nicknameInput').value.trim();
                 var profileData = JSON.stringify({
                     nickname: nickname, avatar: avatarBase64, ready: isReady,
-                    team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes
+                    team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
+                    minigameReady: isMinigameReady
                 });
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
@@ -195,6 +197,65 @@
             });
         }
 
+        function submitTeamName() {
+            var teamName = document.getElementById('teamNameInput').value.trim();
+            if(!teamName) { alert('Inserisci un nome per la squadra!'); return; }
+
+            var teamKey = "TeamName_" + myTeamColor; 
+            var dataObj = {};
+            dataObj[teamKey] = teamName;
+
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                body: JSON.stringify({ SharedGroupId: roomCode, Data: dataObj })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.code === 200) {
+                    document.getElementById('teamTitle').innerText = teamName.toUpperCase();
+                    document.getElementById('captainSection').innerHTML = "<p style='color:#00FF66; font-size:14px;'>Nome registrato! In attesa dell'altra squadra...</p>";
+                } else {
+                    alert('Errore salvataggio nome');
+                }
+            });
+        }
+
+        // Tasto Pronto nel Tutorial (Sblocca anche i sensori con un tocco utente reale)
+        function setMinigameReady() {
+            isMinigameReady = true;
+            var btn = document.getElementById('minigameReadyBtn');
+            btn.innerText = "ATTESA ALTRI...";
+            btn.style.backgroundColor = "#555";
+            btn.disabled = true;
+
+            // Richiesta permessi giroscopio legata al tap dell'utente (fondamentale per iOS)
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('devicemotion', handleMotion);
+                        document.getElementById('sensorStatus').innerText = "Sensori attivi!";
+                        document.getElementById('sensorStatus').style.color = "#00FF66";
+                    }
+                }).catch(console.error);
+            } else {
+                window.addEventListener('devicemotion', handleMotion);
+                document.getElementById('sensorStatus').innerText = "Sensori attivi!";
+                document.getElementById('sensorStatus').style.color = "#00FF66";
+            }
+
+            // Invia subito lo stato pronto a PlayFab
+            var nickname = document.getElementById('nicknameInput').value.trim();
+            var profileData = JSON.stringify({
+                nickname: nickname, avatar: avatarBase64, ready: isReady,
+                team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
+                minigameReady: true
+            });
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
+            }).catch(e => {});
+        }
+
         function checkGameLoop() {
             fetch("https://" + titleId + ".playfabapi.com/Client/GetSharedGroupData", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
@@ -210,6 +271,16 @@
                             handleStateChange(currentGameState);
                         }
                     }
+
+                    if (myTeamColor) {
+                        var keyName = "TeamName_" + myTeamColor;
+                        if (data.data.Data[keyName]) {
+                            var customName = data.data.Data[keyName].Value;
+                            document.getElementById('teamTitle').innerText = customName.toUpperCase();
+                            document.getElementById('teamSubtitle').innerText = "Squadra " + myTeamColor;
+                        }
+                    }
+
                     if (data.data.Data[playFabId]) {
                         var profile = JSON.parse(data.data.Data[playFabId].Value);
                         if (profile.team && profile.team !== "" && currentGameState === "LOBBY") {
@@ -227,7 +298,9 @@
             document.getElementById('screen-tutorial').classList.remove('active');
             document.getElementById('screen-minigame').classList.remove('active');
 
-            if (state === "ROULETTE") {
+            if (state === "TEAM_NAMING") {
+                document.getElementById('screen-team').classList.add('active');
+            } else if (state === "ROULETTE") {
                 document.getElementById('screen-roulette').classList.add('active');
             } else if (state === "TUTORIAL") {
                 document.getElementById('screen-tutorial').classList.add('active');
@@ -240,31 +313,14 @@
             document.getElementById('screen-lobby').classList.remove('active');
             document.getElementById('screen-team').classList.add('active');
             document.getElementById('teamTitle').innerText = "SQUADRA " + teamColor.toUpperCase();
-            document.getElementById('teamSubtitle').innerText = "Pronti a vincere!";
-            if (isCaptain) document.getElementById('captainSection').style.display = 'block';
-        }
-
-        // Funzione attivata dal tocco diretto dell'utente (fondamentale per iPhone)
-        function requestMotionPermission() {
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(response => {
-                    if (response === 'granted') {
-                        window.addEventListener('devicemotion', handleMotion);
-                        document.getElementById('sensorStatus').innerText = "Sensori attivi! Pronto!";
-                        document.getElementById('sensorStatus').style.color = "#00FF66";
-                    } else {
-                        alert('Permesso sensori negato.');
-                    }
-                }).catch(console.error);
-            } else {
-                window.addEventListener('devicemotion', handleMotion);
-                document.getElementById('sensorStatus').innerText = "Sensori attivi!";
-                document.getElementById('sensorStatus').style.color = "#00FF66";
+            document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + teamColor;
+            if (isCaptain) {
+                document.getElementById('captainSection').style.display = 'block';
             }
         }
 
         function handleMotion(e) {
-            if (currentGameState !== "PLAYING") return; // Conta i colpi solo se il gioco è iniziato davvero
+            if (currentGameState !== "PLAYING") return;
             var acc = e.accelerationIncludingGravity;
             if (!acc) return;
 
