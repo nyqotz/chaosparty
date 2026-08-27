@@ -8,7 +8,7 @@
         * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .screen { display: none; width: 90%; max-width: 350px; background: #1e1e1e; padding: 25px; border-radius: 15px; border: 3px solid #333; text-align: center; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
-        .active { display: block; }
+        .active { display: block !important; }
         input[type="text"], input[type="number"] { width: 100%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #333; background: #2a2a2a; color: white; margin-bottom: 15px; }
         .btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #00FF66; color: #121212; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
         .avatar-preview { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid #8B4513; margin: 0 auto 15px auto; display: block; background: #2a2a2a; }
@@ -186,7 +186,6 @@
         }
 
         function toggleReady() {
-            // SICUREZZA: Blocca il tasto se non siamo più nella lobby!
             if (currentGameState !== "LOBBY") return;
 
             isReady = !isReady;
@@ -293,10 +292,9 @@
         }
 
         function handleStateChange(state) {
-            document.getElementById('screen-team').classList.remove('active');
-            document.getElementById('screen-roulette').classList.remove('active');
-            document.getElementById('screen-tutorial').classList.remove('active');
-            document.getElementById('screen-minigame').classList.remove('active');
+            // Nascondi tutte le schermate in modo pulito
+            var screens = document.querySelectorAll('.screen');
+            screens.forEach(s => s.classList.remove('active'));
 
             if (state === "TEAM_NAMING") {
                 document.getElementById('screen-team').classList.add('active');
@@ -310,6 +308,7 @@
         }
 
         function showTeamScreen(teamColor, isCaptain) {
+            // Forza la chiusura della lobby e mostra la squadra
             document.getElementById('screen-lobby').classList.remove('active');
             document.getElementById('screen-team').classList.add('active');
             document.getElementById('teamTitle').innerText = "SQUADRA " + teamColor.toUpperCase();
