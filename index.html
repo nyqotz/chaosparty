@@ -263,6 +263,8 @@
             .then(res => res.json())
             .then(data => {
                 if (data.code === 200 && data.data.Data) {
+                    
+                    // 1. Controlla lo stato globale della TV (Comanda TUTTO)
                     if (data.data.Data["GlobalState"]) {
                         var newState = data.data.Data["GlobalState"].Value;
                         if (newState !== currentGameState) {
@@ -271,32 +273,46 @@
                         }
                     }
 
+                    // 2. Prendi il colore della squadra del giocatore
+                    if (data.data.Data[playFabId]) {
+                        var profile = JSON.parse(data.data.Data[playFabId].Value);
+                        if (profile.team && profile.team !== "") {
+                            myTeamColor = profile.team;
+                        }
+                    }
+
+                    // 3. Aggiorna il titolo della squadra se il nome personalizzato è stato scritto
                     if (myTeamColor) {
                         var keyName = "TeamName_" + myTeamColor;
                         if (data.data.Data[keyName]) {
                             var customName = data.data.Data[keyName].Value;
                             document.getElementById('teamTitle').innerText = customName.toUpperCase();
                             document.getElementById('teamSubtitle').innerText = "Squadra " + myTeamColor;
+                        } else {
+                            document.getElementById('teamTitle').innerText = "SQUADRA " + myTeamColor.toUpperCase();
+                            document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + myTeamColor;
                         }
-                    }
 
-                    if (data.data.Data[playFabId]) {
-                        var profile = JSON.parse(data.data.Data[playFabId].Value);
-                        if (profile.team && profile.team !== "" && currentGameState === "LOBBY") {
-                            myTeamColor = profile.team;
-                            showTeamScreen(profile.team, profile.isCaptain);
+                        // Mostra i comandi al capitano
+                        if (data.data.Data[playFabId]) {
+                            var profile = JSON.parse(data.data.Data[playFabId].Value);
+                            if (profile.isCaptain) {
+                                document.getElementById('captainSection').style.display = 'block';
+                            }
                         }
                     }
                 }
             });
         }
 
+        // Gestione centralizzata delle schermate basata SOLO su GlobalState
         function handleStateChange(state) {
-            // Nascondi tutte le schermate in modo pulito
             var screens = document.querySelectorAll('.screen');
             screens.forEach(s => s.classList.remove('active'));
 
-            if (state === "TEAM_NAMING") {
+            if (state === "LOBBY") {
+                document.getElementById('screen-lobby').classList.add('active');
+            } else if (state === "TEAM_NAMING") {
                 document.getElementById('screen-team').classList.add('active');
             } else if (state === "ROULETTE") {
                 document.getElementById('screen-roulette').classList.add('active');
@@ -304,17 +320,6 @@
                 document.getElementById('screen-tutorial').classList.add('active');
             } else if (state === "PLAYING") {
                 document.getElementById('screen-minigame').classList.add('active');
-            }
-        }
-
-        function showTeamScreen(teamColor, isCaptain) {
-            // Forza la chiusura della lobby e mostra la squadra
-            document.getElementById('screen-lobby').classList.remove('active');
-            document.getElementById('screen-team').classList.add('active');
-            document.getElementById('teamTitle').innerText = "SQUADRA " + teamColor.toUpperCase();
-            document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + teamColor;
-            if (isCaptain) {
-                document.getElementById('captainSection').style.display = 'block';
             }
         }
 
