@@ -159,7 +159,7 @@
                     document.getElementById('screen-lobby').classList.add('active');
                     
                     pollInterval = setInterval(checkTeamAssignment, 2000);
-                    startHeartbeat(); // Avvia il segnale periodico di presenza
+                    startHeartbeat(); // Avvia il segnale di vita (Ping)
                 } else {
                     btn.innerText = "ENTRA IN PARTITA";
                     btn.style.backgroundColor = "#00FF66";
@@ -173,6 +173,7 @@
             });
         }
 
+        // FUNZIONE FONDAMENTALE PER IL TIMEOUT
         function startHeartbeat() {
             heartbeatInterval = setInterval(function() {
                 if (!roomCode || !playFabId) return;
@@ -183,7 +184,8 @@
                     avatar: avatarBase64,
                     ready: isReady,
                     team: "",
-                    isCaptain: false
+                    isCaptain: false,
+                    ping: Date.now() // <--- Questo dato unico assicura che PlayFab aggiorni davvero l'orario di salvataggio!
                 });
 
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
@@ -194,7 +196,7 @@
                         Data: { [playFabId]: profileData }
                     })
                 }).catch(function(e) {});
-            }, 3000); // Invia un segnale ogni 3 secondi
+            }, 3000); // Invia un ping ogni 3 secondi
         }
 
         function toggleReady() {
@@ -234,7 +236,7 @@
                     var profile = JSON.parse(data.data.Data[playFabId].Value);
                     if (profile.team && profile.team !== "") {
                         clearInterval(pollInterval);
-                        clearInterval(heartbeatInterval);
+                        clearInterval(heartbeatInterval); // Ferma il ping quando inizia la partita
                         myTeamColor = profile.team;
                         showTeamScreen(profile.team, profile.isCaptain);
                     }
