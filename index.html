@@ -51,6 +51,28 @@
         </div>
     </div>
 
+    <!-- Schermata 5: Roulette Minigioco -->
+    <div id="screen-roulette" class="screen">
+        <h1 style="color: #FF0055; font-size: 20px;">ROULETTE</h1>
+        <p style="font-size: 14px; color: #00FF66; margin-top: 20px;">Estrazione minigioco in corso sulla TV...</p>
+    </div>
+
+    <!-- Schermata 6: Tutorial / Regole con Pulsante Obbligatorio per iOS -->
+    <div id="screen-tutorial" class="screen">
+        <h1 style="color: #00FF66; font-size: 20px;">TAGLIABOSCHI</h1>
+        <p style="font-size: 13px; color: #aaa; margin: 10px 0;">Regola: Scuota il telefono per tagliare il tronco!</p>
+        <button class="btn" style="background-color: #FF0055; color: white;" onclick="requestMotionPermission()">1. ATTIVA SENSORI</button>
+        <p id="sensorStatus" style="font-size: 12px; color: #ffaa00; margin-top: 10px;">Ticca il tasto sopra per abilitare il movimento!</p>
+    </div>
+
+    <!-- Schermata 7: Minigioco in Corso -->
+    <div id="screen-minigame" class="screen">
+        <h1 style="color: #FF0055; font-size: 20px;">TAGLIA IL TRONCO!</h1>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 15px;">Daje con gli scossoni!</p>
+        <div id="scoreDisplay" style="font-size: 45px; color: #00FF66; font-weight: bold;">0</div>
+        <p style="font-size: 11px; color: #777; margin-top: 10px;">COLPI</p>
+    </div>
+
     <script>
         var titleId = "71EAC";
         var roomCode = '';
@@ -61,6 +83,10 @@
         var pollInterval = null;
         var heartbeatInterval = null;
         var myTeamColor = "";
+        var currentGameState = "LOBBY";
+        
+        var localShakes = 0;
+        var lastShakeTime = 0;
 
         window.onload = function() {
             try {
@@ -73,13 +99,8 @@
         function joinRoom() {
             var btn = document.getElementById('btnAvanti');
             btn.innerText = "CARICAMENTO...";
-
             roomCode = document.getElementById('pinInput').value.trim();
-            if(roomCode.length !== 4) { 
-                alert('Inserisci un PIN valido a 4 cifre.'); 
-                btn.innerText = "AVANTI";
-                return; 
-            }
+            if(roomCode.length !== 4) { alert('PIN non valido'); btn.innerText = "AVANTI"; return; }
 
             var requestBody = JSON.stringify({
                 TitleId: titleId,
@@ -88,25 +109,16 @@
             });
 
             fetch("https://" + titleId + ".playfabapi.com/Client/LoginWithCustomID", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: requestBody
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody
             })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
+            .then(res => res.json())
+            .then(data => {
                 if (data.code === 200) {
                     sessionTicket = data.data.SessionTicket;
                     playFabId = data.data.PlayFabId;
                     document.getElementById('screen-pin').classList.remove('active');
                     document.getElementById('screen-profile').classList.add('active');
-                } else {
-                    alert('Errore Login PlayFab: ' + JSON.stringify(data));
-                    btn.innerText = "AVANTI";
-                }
-            })
-            .catch(function(err) {
-                alert('Errore di connessione Rete: ' + err.message);
-                btn.innerText = "AVANTI";
+                } else { btn.innerText = "AVANTI"; }
             });
         }
 
@@ -135,68 +147,40 @@
 
         function saveProfile() {
             var nickname = document.getElementById('nicknameInput').value.trim();
-            if(!nickname) { alert('Inserisci un nickname!'); return; }
-
-            var btn = document.getElementById('enterBtn');
-            btn.innerText = "ATTENDI...";
-            btn.style.backgroundColor = "#555";
+            if(!nickname) { alert('Inserisci un nickname'); return; }
 
             var requestBody = JSON.stringify({
                 FunctionName: "JoinRoom",
-                FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 },
-                GeneratePlayStreamEvent: true
+                FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 }
             });
 
             fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: requestBody
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket }, body: requestBody
             })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.code === 200 && data.data.FunctionResult && data.data.FunctionResult.success) {
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-lobby').classList.add('active');
-                    
-                    pollInterval = setInterval(checkTeamAssignment, 2000);
-                    startHeartbeat(); // Avvia il segnale di vita (Ping)
-                } else {
-                    btn.innerText = "ENTRA IN PARTITA";
-                    btn.style.backgroundColor = "#00FF66";
-                    alert('Errore CloudScript: ' + (data.data.Error ? data.data.Error.Message : JSON.stringify(data)));
+                    pollInterval = setInterval(checkGameLoop, 2000);
+                    startHeartbeat();
                 }
-            })
-            .catch(function(err) {
-                btn.innerText = "ENTRA IN PARTITA";
-                btn.style.backgroundColor = "#00FF66";
-                alert('Errore Rete Profilo: ' + err.message);
             });
         }
 
-        // FUNZIONE FONDAMENTALE PER IL TIMEOUT
         function startHeartbeat() {
             heartbeatInterval = setInterval(function() {
                 if (!roomCode || !playFabId) return;
                 var nickname = document.getElementById('nicknameInput').value.trim();
-                
                 var profileData = JSON.stringify({
-                    nickname: nickname,
-                    avatar: avatarBase64,
-                    ready: isReady,
-                    team: "",
-                    isCaptain: false,
-                    ping: Date.now() // <--- Questo dato unico assicura che PlayFab aggiorni davvero l'orario di salvataggio!
+                    nickname: nickname, avatar: avatarBase64, ready: isReady,
+                    team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes
                 });
-
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({
-                        SharedGroupId: roomCode,
-                        Data: { [playFabId]: profileData }
-                    })
-                }).catch(function(e) {});
-            }, 10000); // Invia un ping ogni 3 secondi
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
+                }).catch(e => {});
+            }, 5000);
         }
 
         function toggleReady() {
@@ -205,83 +189,97 @@
             btn.innerText = isReady ? 'ANNULLA' : 'SONO PRONTO!';
             btn.style.backgroundColor = isReady ? '#FF0055' : '#00FF66';
 
-            var requestBody = JSON.stringify({
-                FunctionName: "SetReady",
-                FunctionParameter: { roomId: roomCode, ready: isReady }
-            });
-
             fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: requestBody
-            })
-            .then(function(response) { return response.json(); })
-            .catch(function(err) { alert('Errore Rete Pronto: ' + err.message); });
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                body: JSON.stringify({ FunctionName: "SetReady", FunctionParameter: { roomId: roomCode, ready: isReady } })
+            });
         }
 
-        function checkTeamAssignment() {
-            var requestBody = JSON.stringify({
-                SharedGroupId: roomCode,
-                Keys: [playFabId]
-            });
-
+        function checkGameLoop() {
             fetch("https://" + titleId + ".playfabapi.com/Client/GetSharedGroupData", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: requestBody
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                body: JSON.stringify({ SharedGroupId: roomCode, GetMembers: true })
             })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.code === 200 && data.data.Data && data.data.Data[playFabId]) {
-                    var profile = JSON.parse(data.data.Data[playFabId].Value);
-                    if (profile.team && profile.team !== "") {
-                        clearInterval(pollInterval);
-                        clearInterval(heartbeatInterval); // Ferma il ping quando inizia la partita
-                        myTeamColor = profile.team;
-                        showTeamScreen(profile.team, profile.isCaptain);
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200 && data.data.Data) {
+                    if (data.data.Data["GlobalState"]) {
+                        var newState = data.data.Data["GlobalState"].Value;
+                        if (newState !== currentGameState) {
+                            currentGameState = newState;
+                            handleStateChange(currentGameState);
+                        }
+                    }
+                    if (data.data.Data[playFabId]) {
+                        var profile = JSON.parse(data.data.Data[playFabId].Value);
+                        if (profile.team && profile.team !== "" && currentGameState === "LOBBY") {
+                            myTeamColor = profile.team;
+                            showTeamScreen(profile.team, profile.isCaptain);
+                        }
                     }
                 }
-            })
-            .catch(function(err) {});
+            });
+        }
+
+        function handleStateChange(state) {
+            document.getElementById('screen-team').classList.remove('active');
+            document.getElementById('screen-roulette').classList.remove('active');
+            document.getElementById('screen-tutorial').classList.remove('active');
+            document.getElementById('screen-minigame').classList.remove('active');
+
+            if (state === "ROULETTE") {
+                document.getElementById('screen-roulette').classList.add('active');
+            } else if (state === "TUTORIAL") {
+                document.getElementById('screen-tutorial').classList.add('active');
+            } else if (state === "PLAYING") {
+                document.getElementById('screen-minigame').classList.add('active');
+            }
         }
 
         function showTeamScreen(teamColor, isCaptain) {
             document.getElementById('screen-lobby').classList.remove('active');
             document.getElementById('screen-team').classList.add('active');
             document.getElementById('teamTitle').innerText = "SQUADRA " + teamColor.toUpperCase();
-            document.getElementById('teamSubtitle').innerText = "Preparati a vincere!";
-            if (isCaptain) {
-                document.getElementById('captainSection').style.display = 'block';
+            document.getElementById('teamSubtitle').innerText = "Pronti a vincere!";
+            if (isCaptain) document.getElementById('captainSection').style.display = 'block';
+        }
+
+        // Funzione attivata dal tocco diretto dell'utente (fondamentale per iPhone)
+        function requestMotionPermission() {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('devicemotion', handleMotion);
+                        document.getElementById('sensorStatus').innerText = "Sensori attivi! Pronto!";
+                        document.getElementById('sensorStatus').style.color = "#00FF66";
+                    } else {
+                        alert('Permesso sensori negato.');
+                    }
+                }).catch(console.error);
+            } else {
+                window.addEventListener('devicemotion', handleMotion);
+                document.getElementById('sensorStatus').innerText = "Sensori attivi!";
+                document.getElementById('sensorStatus').style.color = "#00FF66";
             }
         }
 
-        function submitTeamName() {
-            var teamName = document.getElementById('teamNameInput').value.trim();
-            if(!teamName) { alert('Inserisci un nome!'); return; }
+        function handleMotion(e) {
+            if (currentGameState !== "PLAYING") return; // Conta i colpi solo se il gioco è iniziato davvero
+            var acc = e.accelerationIncludingGravity;
+            if (!acc) return;
 
-            var requestBody = JSON.stringify({
-                FunctionName: "SetTeamName",
-                FunctionParameter: { roomId: roomCode, teamName: teamName, teamColor: myTeamColor }
-            });
+            var currentTime = Date.now();
+            if (currentTime - lastShakeTime > 120) {
+                var threshold = 18;
+                var movement = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
 
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: requestBody
-            })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.code === 200) {
-                    alert('Nome squadra salvato!');
-                    document.getElementById('captainSection').style.display = 'none';
-                    document.getElementById('teamSubtitle').innerText = "Nome squadra: " + teamName;
-                } else {
-                    alert('Errore Salvataggio: ' + JSON.stringify(data));
+                if (movement > threshold) {
+                    localShakes++;
+                    lastShakeTime = currentTime;
+                    document.getElementById('scoreDisplay').innerText = localShakes;
+                    if (navigator.vibrate) { navigator.vibrate(40); }
                 }
-            })
-            .catch(function(err) {
-                alert('Errore Rete Nome: ' + err.message);
-            });
+            }
         }
     </script>
 </body>
