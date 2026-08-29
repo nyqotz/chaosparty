@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chaos Party Controller</title>
     <style>
-        * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
+        * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; -webkit-touch-callout: none; }
         
         body, html { 
             margin: 0; 
@@ -93,7 +93,7 @@
         .avatar-container {
             width: 95px;
             height: 95px;
-            border-radius: 15px; /* Quadrato smussato anziché tondo */
+            border-radius: 15px;
             border: 4px solid #00ff66;
             overflow: hidden;
             background: #0f0f15;
@@ -120,15 +120,15 @@
             letter-spacing: 1px;
         }
 
-        /* Schermata / Modale di Ritaglio Quadrato */
+        /* Schermata di Ritaglio Quadrato Solida */
         #screen-crop {
             max-width: 380px;
         }
         
         .crop-container {
             position: relative;
-            width: 220px;
-            height: 220px;
+            width: 240px;
+            height: 240px;
             margin: 0 auto 12px auto;
             overflow: hidden;
             background: #000;
@@ -138,7 +138,9 @@
         }
 
         #cropCanvas {
-            position: absolute;
+            display: block;
+            width: 100%;
+            height: 100%;
             cursor: grab;
         }
 
@@ -175,7 +177,7 @@
             <canvas id="cropCanvas"></canvas>
         </div>
 
-        <input type="range" id="zoomRange" min="0.2" max="3" step="0.01" value="1" style="width: 100%; margin-bottom: 12px; accent-color: #00ff66;" oninput="adjustZoom(this.value)">
+        <input type="range" id="zoomRange" min="0.5" max="3" step="0.01" value="1" style="width: 100%; margin-bottom: 12px; accent-color: #00ff66;" oninput="adjustZoom(this.value)">
         <button class="btn" onclick="confirmCrop()">CONFERMA RITAGLIO</button>
     </div>
 
@@ -257,7 +259,7 @@
         let imgX = 0, imgY = 0, imgScale = 1;
         let isDragging = false;
         let startX, startY;
-        let containerSize = 220;
+        let renderSize = 300;
 
         window.onload = function() {
             try {
@@ -268,15 +270,39 @@
 
             canvas = document.getElementById('cropCanvas');
             ctx = canvas.getContext('2d');
-            canvas.width = containerSize;
-            canvas.height = containerSize;
+            canvas.width = renderSize;
+            canvas.height = renderSize;
 
             setupCropListeners();
+
+            // --- CONTROLLO MEMORIA SESSIONE (Ricarica automatica) ---
+            let savedRoom = localStorage.getItem('cp_room');
+            let savedTicket = localStorage.getItem('cp_ticket');
+            let savedId = localStorage.getItem('cp_id');
+            let savedNick = localStorage.getItem('cp_nick');
+            let savedAvatar = localStorage.getItem('cp_avatar');
+
+            if (savedRoom && savedTicket && savedId && savedNick) {
+                roomCode = savedRoom;
+                sessionTicket = savedTicket;
+                playFabId = savedId;
+                document.getElementById('nicknameInput').value = savedNick;
+                if (savedAvatar) {
+                    avatarBase64 = savedAvatar;
+                    document.getElementById('avatarPreview').src = avatarBase64;
+                }
+
+                // Salta direttamente alla lobby e riattiva il loop e l'heartbeat
+                document.getElementById('screen-pin').classList.remove('active');
+                document.getElementById('screen-lobby').classList.add('active');
+                pollInterval = setInterval(checkGameLoop, 2000);
+                startHeartbeat();
+            }
         };
 
         function joinRoom() {
             var btn = document.getElementById('btnAvanti');
-            btn.innerText = "CARICAMENTO...";
+            btn.innerText = "CONNESSIONE...";
             roomCode = document.getElementById('pinInput').value.trim();
             if(roomCode.length !== 4) { alert('PIN non valido'); btn.innerText = "AVANTI"; return; }
 
@@ -294,9 +320,24 @@
                 if (data.code === 200) {
                     sessionTicket = data.data.SessionTicket;
                     playFabId = data.data.PlayFabId;
-                    document.getElementById('screen-pin').classList.remove('active');
-                    document.getElementById('screen-profile').classList.add('active');
-                } else { btn.innerText = "AVANTI"; }
+                    
+                    return fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                        body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
+                    });
+                } else {
+                    throw new Error("Login fallito");
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('screen-pin').classList.remove('active');
+                document.getElementById('screen-profile').classList.add('active');
+            })
+            .catch(err => {
+                alert('Impossibile connettersi alla stanza. Controlla il PIN.');
+                btn.innerText = "AVANTI";
             });
         }
 
@@ -309,17 +350,17 @@
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-crop').classList.add('active');
 
-                    // Calcolo scala iniziale pulita senza zoom estremi
-                    let minDim = Math.min(cropImage.width, cropImage.height);
-                    imgScale = containerSize / minDim;
-                    
+                    let scaleX = renderSize / cropImage.width;
+                    let scaleY = renderSize / cropImage.height;
+                    imgScale = Math.max(scaleX, scaleY);
+
                     let slider = document.getElementById('zoomRange');
-                    slider.min = imgScale * 0.3;
-                    slider.max = imgScale * 4;
+                    slider.min = imgScale * 0.5;
+                    slider.max = imgScale * 3;
                     slider.value = imgScale;
 
-                    imgX = (containerSize - cropImage.width * imgScale) / 2;
-                    imgY = (containerSize - cropImage.height * imgScale) / 2;
+                    imgX = (renderSize - cropImage.width * imgScale) / 2;
+                    imgY = (renderSize - cropImage.height * imgScale) / 2;
 
                     drawCanvas();
                 }
@@ -341,26 +382,34 @@
         function setupCropListeners() {
             let container = document.getElementById('cropContainer');
 
-            container.addEventListener('mousedown', startDrag);
-            container.addEventListener('mousemove', onDrag);
+            function getClientPos(e) {
+                return e.touches ? e.touches[0] : e;
+            }
+
+            container.addEventListener('mousedown', (e) => { startDrag(getClientPos(e)); });
+            container.addEventListener('mousemove', (e) => { onDrag(getClientPos(e)); });
             container.addEventListener('mouseup', endDrag);
             container.addEventListener('mouseleave', endDrag);
 
-            container.addEventListener('touchstart', (e) => { startDrag(e.touches[0]); }, {passive: true});
-            container.addEventListener('touchmove', (e) => { onDrag(e.touches[0]); }, {passive: true});
+            container.addEventListener('touchstart', (e) => { startDrag(getClientPos(e)); }, {passive: true});
+            container.addEventListener('touchmove', (e) => { onDrag(getClientPos(e)); }, {passive: true});
             container.addEventListener('touchend', endDrag);
         }
 
         function startDrag(e) {
             isDragging = true;
-            startX = e.clientX - imgX;
-            startY = e.clientY - imgY;
+            let rect = canvas.getBoundingClientRect();
+            let scaleFactor = renderSize / rect.width;
+            startX = (e.clientX - rect.left) * scaleFactor - imgX;
+            startY = (e.clientY - rect.top) * scaleFactor - imgY;
         }
 
         function onDrag(e) {
             if (!isDragging) return;
-            imgX = e.clientX - startX;
-            imgY = e.clientY - startY;
+            let rect = canvas.getBoundingClientRect();
+            let scaleFactor = renderSize / rect.width;
+            imgX = (e.clientX - rect.left) * scaleFactor - startX;
+            imgY = (e.clientY - rect.top) * scaleFactor - startY;
             drawCanvas();
         }
 
@@ -372,7 +421,7 @@
             let oldScale = imgScale;
             imgScale = parseFloat(val);
             
-            let center = containerSize / 2;
+            let center = renderSize / 2;
             imgX = center - (center - imgX) * (imgScale / oldScale);
             imgY = center - (center - imgY) * (imgScale / oldScale);
 
@@ -386,10 +435,7 @@
             finalCanvas.height = finalSize;
             let finalCtx = finalCanvas.getContext('2d');
 
-            // Niente clip circolare: l'avatar finale salvato sarà perfettamente QUADRATO
-            let ratio = finalSize / containerSize;
-            finalCtx.scale(ratio, ratio);
-            finalCtx.drawImage(canvas, 0, 0);
+            finalCtx.drawImage(canvas, 0, 0, renderSize, renderSize, 0, 0, finalSize, finalSize);
 
             avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.9);
             document.getElementById('avatarPreview').src = avatarBase64;
@@ -405,6 +451,13 @@
 
             var btn = document.getElementById('enterBtn');
             btn.innerText = "ACCESSO IN CORSO...";
+
+            // Salva in localStorage per il recupero in caso di ricarica pagina
+            localStorage.setItem('cp_room', roomCode);
+            localStorage.setItem('cp_ticket', sessionTicket);
+            localStorage.setItem('cp_id', playFabId);
+            localStorage.setItem('cp_nick', nickname);
+            localStorage.setItem('cp_avatar', avatarBase64);
 
             var profileData = JSON.stringify({
                 nickname: nickname, 
