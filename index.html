@@ -351,7 +351,7 @@
                     document.getElementById('screen-pin').classList.remove('active');
                     document.getElementById('screen-profile').classList.add('active');
                 } else {
-                    alert('Errore PlayFab: ' + (data.errorMessage || "Login fallito"));
+                    alert('Errore Login PlayFab: ' + (data.errorMessage || "Login fallito"));
                 }
             })
             .catch(err => {
@@ -475,7 +475,6 @@
             localStorage.setItem('cp_nick', nickname);
             localStorage.setItem('cp_avatar', avatarBase64);
 
-            // Chiama la funzione CloudScript "JoinRoom" presente nel tuo CloudScript di PlayFab
             fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
@@ -491,20 +490,19 @@
             .then(res => res.json())
             .then(data => {
                 btn.innerText = "ENTRA IN PARTITA";
-                // Controlla la risposta della funzione CloudScript
                 if (data.code === 200 && data.data && data.data.FunctionResult && data.data.FunctionResult.success) {
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-lobby').classList.add('active');
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
                 } else {
-                    var errDesc = (data.data && data.data.Error) ? data.data.Error.Message : (data.errorMessage || "Errore di esecuzione CloudScript");
-                    alert('Errore CloudScript: ' + errDesc);
+                    // MOSTRA L'ERRORE GREZZO DI PLAYFAB PER CAPIRE COSA NON VA
+                    alert('Errore PlayFab: ' + JSON.stringify(data));
                 }
             })
             .catch(err => {
                 btn.innerText = "ENTRA IN PARTITA";
-                alert('Errore di rete o connessione: ' + err);
+                alert('Errore di rete: ' + err);
             });
         }
 
@@ -517,7 +515,6 @@
                     team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
                     minigameReady: isMinigameReady
                 });
-                // Aggiornamento heartbeat tramite client nativo (ora che JoinRoom ha aggiunto il giocatore come membro)
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                     body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
@@ -591,9 +588,9 @@
                 team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
                 minigameReady: true
             });
-            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
+                body: JSON.stringify({ FunctionName: "UpdatePlayerProfile", FunctionParameter: { roomId: roomCode, playerId: playFabId, profileJson: profileData } })
             }).catch(() => {});
         }
 
@@ -673,7 +670,7 @@
                 if (movement > threshold) {
                     localShakes++;
                     lastShakeTime = currentTime;
-                    document.getElementById('scoreDisplay').innerText = localShakes;
+                    document.getElementById('scoreDisplay').innerText, localShakes;
                     if (navigator.vibrate) { navigator.vibrate(40); }
                 }
             }
