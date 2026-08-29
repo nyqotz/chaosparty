@@ -1,253 +1,4 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chaos Party Controller</title>
-    <style>
-        * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
-        
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            background: #0b0b10; 
-            color: white; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            overflow: hidden; 
-        }
-
-        .screen { 
-            display: none; 
-            width: 90%; 
-            max-width: 380px; 
-            background: #181822; 
-            padding: 25px; 
-            border-radius: 20px; 
-            border: 4px solid #ff0055; 
-            text-align: center; 
-            box-shadow: 0 10px 25px rgba(255, 0, 85, 0.3), inset 0 0 15px rgba(0,0,0,0.8); 
-        }
-        
-        .active { display: block !important; }
-
-        .game-logo {
-            width: 100%;
-            max-width: 270px;
-            height: auto;
-            margin: 0 auto 20px auto;
-            display: block;
-            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.8));
-        }
-
-        input[type="text"], input[type="number"] { 
-            width: 100%; 
-            padding: 15px; 
-            font-size: 20px; 
-            text-align: center; 
-            border-radius: 12px; 
-            border: 3px solid #ff0055; 
-            background: #0f0f15; 
-            color: #ffffff; 
-            margin-bottom: 15px; 
-            outline: none;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
-        }
-
-        input[type="text"]:focus, input[type="number"]:focus {
-            border-color: #00ff66;
-            box-shadow: 0 0 10px rgba(0, 255, 102, 0.5), inset 0 2px 5px rgba(0,0,0,0.5);
-        }
-
-        .btn { 
-            width: 100%; 
-            padding: 15px; 
-            font-size: 18px; 
-            font-weight: bold; 
-            background-color: #00ff66; 
-            color: #0b0b10; 
-            border: none; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            margin-top: 10px; 
-            box-shadow: 0 5px 0 #00993d;
-            transition: all 0.1s ease;
-        }
-
-        .btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #00993d;
-        }
-
-        /* Avatar Cliccabile */
-        .avatar-label {
-            display: inline-block;
-            cursor: pointer;
-            position: relative;
-            margin: 0 auto 5px auto;
-        }
-
-        .avatar-container {
-            width: 110px;
-            height: 110px;
-            border-radius: 50%;
-            border: 4px solid #00ff66;
-            overflow: hidden;
-            background: #0f0f15;
-            box-shadow: 0 0 15px rgba(0, 255, 102, 0.4);
-            transition: transform 0.1s ease, border-color 0.2s ease;
-        }
-
-        .avatar-label:active .avatar-container {
-            transform: scale(0.95);
-            border-color: #ff0055;
-        }
-
-        .avatar-preview { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-        }
-
-        .avatar-hint {
-            font-size: 11px;
-            color: #00ff66;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* Schermata / Modale di Ritaglio Circolare */
-        #screen-crop {
-            max-width: 400px;
-        }
-        
-        .crop-container {
-            position: relative;
-            width: 260px;
-            height: 260px;
-            margin: 0 auto 15px auto;
-            overflow: hidden;
-            background: #000;
-            border-radius: 15px;
-            border: 2px solid #333;
-            touch-action: none;
-        }
-
-        #cropCanvas {
-            position: absolute;
-            cursor: grab;
-        }
-
-        /* Maschera circolare in sovraimpressione */
-        .crop-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.75);
-            border-radius: 50%;
-            border: 3px solid #00ff66;
-        }
-
-        .crop-instructions {
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 15px;
-        }
-
-        h1, h2 {
-            text-shadow: 2px 2px 0px #000;
-            letter-spacing: 1px;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Schermata 1: Inserimento PIN -->
-    <div id="screen-pin" class="screen active">
-        <img src="TitleLogo.png" alt="Chaos Party" class="game-logo" onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
-        <h1 id="fallback-title" style="color: #ff0055; font-size: 26px; display:none; margin-bottom:10px;">CHAOS PARTY</h1>
-        
-        <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Inserisci il PIN della stanza:</p>
-        <input type="number" id="pinInput" placeholder="----" maxlength="4">
-        <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
-    </div>
-
-    <!-- Schermata di Ritaglio (Crop) Circolare -->
-    <div id="screen-crop" class="screen">
-        <h1 style="color: #00ff66; font-size: 20px; margin-top:0;">RITAGLIA FOTO</h1>
-        <p class="crop-instructions">Trascina per centrare il tuo volto nel cerchio</p>
-        
-        <div class="crop-container" id="cropContainer">
-            <canvas id="cropCanvas"></canvas>
-            <div class="crop-overlay"></div>
-        </div>
-
-        <input type="range" id="zoomRange" min="0.5" max="3" step="0.05" value="1" style="width: 100%; margin-bottom: 15px; accent-color: #00ff66;" oninput="adjustZoom(this.value)">
-        <button class="btn" onclick="confirmCrop()">CONFERMA RITAGLIO</button>
-    </div>
-
-    <!-- Schermata 2: Profilo -->
-    <div id="screen-profile" class="screen">
-        <h1 style="color: #00ff66; font-size: 22px; margin-top:0;">IL TUO PROFILO</h1>
-        
-        <input type="file" id="fileInput" accept="image/*" onchange="initCrop(this)" style="display: none;">
-        
-        <label for="fileInput" class="avatar-label">
-            <div class="avatar-container">
-                <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3 z'/></svg>">
-            </div>
-        </label>
-        <div class="avatar-hint">Tocca per cambiare foto</div>
-
-        <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
-        <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
-    </div>
-
-    <!-- Schermata 3: Lobby -->
-    <div id="screen-lobby" class="screen">
-        <h2 style="font-size: 20px; color: #00ff66;">SEI DENTRO!</h2>
-        <p style="font-size: 14px; color: #aaa; margin: 20px 0;">Tutti pronti per iniziare?</p>
-        <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
-    </div>
-
-    <!-- Schermata 4: Squadra e Nome Squadra -->
-    <div id="screen-team" class="screen">
-        <h1 id="teamTitle" style="font-size: 22px; color: #ff0055;">SQUADRA</h1>
-        <p id="teamSubtitle" style="font-size: 14px; color: #aaa;">In attesa del nome squadra...</p>
-        <div id="captainSection" style="display:none; margin-top: 15px;">
-            <p style="font-size: 12px; color: #00ff66;">Sei il Capitano! Scegli il nome:</p>
-            <input type="text" id="teamNameInput" placeholder="Nome Squadra" maxlength="15">
-            <button class="btn" onclick="submitTeamName()">CONFERMA NOME</button>
-        </div>
-    </div>
-
-    <!-- Schermata 5: Roulette Minigioco -->
-    <div id="screen-roulette" class="screen">
-        <h1 style="color: #ff0055; font-size: 22px;">ROULETTE</h1>
-        <p style="font-size: 14px; color: #00ff66; margin-top: 20px;">Estrazione minigioco in corso...</p>
-    </div>
-
-    <!-- Schermata 6: Tutorial con Tasto Pronto -->
-    <div id="screen-tutorial" class="screen">
-        <h1 style="color: #00ff66; font-size: 22px;">TAGLIABOSCHI</h1>
-        <p style="font-size: 14px; color: #aaa; margin: 15px 0;">Scuota il telefono per tagliare il tronco!</p>
-        <button id="minigameReadyBtn" class="btn" onclick="setMinigameReady()">SONO PRONTO!</button>
-        <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 15px;">Premi pronto per attivare i sensori.</p>
-    </div>
-
-    <!-- Schermata 7: Minigioco in Corso -->
-    <div id="screen-minigame" class="screen">
-        <h1 style="color: #ff0055; font-size: 22px;">TAGLIA IL TRONCO!</h1>
-        <p style="font-size: 13px; color: #aaa; margin-bottom: 15px;">Daje con gli scossoni!</p>
-        <div id="scoreDisplay" style="font-size: 55px; color: #00ff66; font-weight: bold; text-shadow: 0 0 10px rgba(0,255,102,0.5);">0</div>
-        <p style="font-size: 12px; color: #777; margin-top: 10px; letter-spacing: 2px;">COLPI</p>
-    </div>
-
-    <script>
+<script>
         var titleId = "71EAC";
         var roomCode = '';
         var sessionTicket = '';
@@ -312,7 +63,7 @@
             });
         }
 
-        // --- Logica di Ritaglio Circolare Interattivo ---
+        // --- Logica di Ritaglio Circolare Corretta e Centrata ---
         function initCrop(input) {
             var file = input.files[0];
             if (!file) return;
@@ -323,11 +74,12 @@
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-crop').classList.add('active');
 
-                    // Calcola la scala iniziale per riempire il cerchio
-                    let minDim = Math.min(cropImage.width, cropImage.height);
-                    imgScale = containerSize / minDim;
+                    // Calcola la scala iniziale affinché l'immagine copra perfettamente tutto il cerchio senza spazi vuoti
+                    let maxDim = Math.max(cropImage.width, cropImage.height);
+                    imgScale = containerSize / maxDim;
                     document.getElementById('zoomRange').value = imgScale;
 
+                    // Centra l'immagine alla perfezione nel canvas
                     imgX = (containerSize - cropImage.width * imgScale) / 2;
                     imgY = (containerSize - cropImage.height * imgScale) / 2;
 
@@ -336,7 +88,7 @@
                 cropImage.src = e.target.result;
             }
             reader.readAsDataURL(file);
-            input.value = ""; // Resetta l'input per permettere lo stesso file
+            input.value = ""; 
         }
 
         function drawCanvas() {
@@ -356,8 +108,8 @@
             container.addEventListener('mouseup', endDrag);
             container.addEventListener('mouseleave', endDrag);
 
-            container.addEventListener('touchstart', (e) => { startDrag(e.touches[0]); });
-            container.addEventListener('touchmove', (e) => { onDrag(e.touches[0]); });
+            container.addEventListener('touchstart', (e) => { startDrag(e.touches[0]); }, {passive: true});
+            container.addEventListener('touchmove', (e) => { onDrag(e.touches[0]); }, {passive: true});
             container.addEventListener('touchend', endDrag);
         }
 
@@ -382,7 +134,6 @@
             let oldScale = imgScale;
             imgScale = parseFloat(val);
             
-            // Zoom incentrato sul container
             let center = containerSize / 2;
             imgX = center - (center - imgX) * (imgScale / oldScale);
             imgY = center - (center - imgY) * (imgScale / oldScale);
@@ -391,30 +142,23 @@
         }
 
         function confirmCrop() {
-            // Crea un canvas definitivo ad alta definizione per l'avatar circolare finale
             let finalCanvas = document.createElement('canvas');
-            let finalSize = 200; // Ottima risoluzione pulita per la TV
+            let finalSize = 300; 
             finalCanvas.width = finalSize;
             finalCanvas.height = finalSize;
             let finalCtx = finalCanvas.getContext('2d');
 
-            // Ritaglia esattamente l'area racchiusa nel cerchio
             finalCtx.beginPath();
             finalCtx.arc(finalSize / 2, finalSize / 2, finalSize / 2, 0, Math.PI * 2, true);
             finalCtx.clip();
 
-            // Calcola le proporzioni dal canvas di anteprima a quello finale
             let ratio = finalSize / containerSize;
-            finalCtx.drawImage(
-                canvas, 
-                0, 0, canvas.width, canvas.height, 
-                0, 0, finalSize, finalSize
-            );
+            finalCtx.scale(ratio, ratio);
+            finalCtx.drawImage(canvas, 0, 0);
 
-            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.85);
+            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.9);
             document.getElementById('avatarPreview').src = avatarBase64;
 
-            // Torna alla schermata profilo
             document.getElementById('screen-crop').classList.remove('active');
             document.getElementById('screen-profile').classList.add('active');
         }
@@ -588,7 +332,7 @@
                 document.getElementById('screen-team').classList.add('active');
             } else if (state === "ROULETTE") {
                 document.getElementById('screen-roulette').classList.add('active');
-            } else if (state === "TUTORIAL") {
+            } else if5 (state === "TUTORIAL") {
                 document.getElementById('screen-tutorial').classList.add('active');
             } else if (state === "PLAYING") {
                 document.getElementById('screen-minigame').classList.add('active');
@@ -614,5 +358,3 @@
             }
         }
     </script>
-</body>
-</html>
