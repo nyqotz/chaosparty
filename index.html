@@ -486,7 +486,6 @@
                 minigameReady: false
             });
 
-            // Inviamo direttamente i dati alla Shared Group creata da Unity
             fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
@@ -503,39 +502,12 @@
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
                 } else {
-                    // TI MOSTRA L'ERRORE ESATTO DI PLAYFAB INVECE DI UN MESSAGGIO GENERICO
                     alert('Errore PlayFab: ' + (data.errorMessage || data.error));
                     btn.innerText = "ENTRA IN PARTITA";
                 }
             })
             .catch(err => {
                 alert('Errore di rete: ' + err);
-                btn.innerText = "ENTRA IN PARTITA`";
-            });
-        }
-
-            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ 
-                    SharedGroupId: roomCode, 
-                    Data: { [playFabId]: profileData } 
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.code === 200) {
-                    document.getElementById('screen-profile').classList.remove('active');
-                    document.getElementById('screen-lobby').classList.add('active');
-                    pollInterval = setInterval(checkGameLoop, 2000);
-                    startHeartbeat();
-                } else {
-                    alert('Stanza non trovata o PIN errato. Controlla lo schermo.');
-                    btn.innerText = "ENTRA IN PARTITA";
-                }
-            })
-            .catch(() => {
-                alert('Errore di rete. Controlla la connessione.');
                 btn.innerText = "ENTRA IN PARTITA";
             });
         }
