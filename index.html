@@ -450,14 +450,15 @@
 
         function confirmCrop() {
             let finalCanvas = document.createElement('canvas');
-            let finalSize = 300; 
+            let finalSize = 120; // Ridotto a 120x120 per alleggerire drasticamente i dati
             finalCanvas.width = finalSize;
             finalCanvas.height = finalSize;
             let finalCtx = finalCanvas.getContext('2d');
 
             finalCtx.drawImage(canvas, 0, 0, renderSize, renderSize, 0, 0, finalSize, finalSize);
 
-            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.9);
+            // Compressione JPEG forte al 70% per rientrare nei limiti di dimensione dei parametri CloudScript
+            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.7);
             document.getElementById('avatarPreview').src = avatarBase64;
 
             document.getElementById('screen-crop').classList.remove('active');
@@ -496,7 +497,6 @@
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
                 } else {
-                    // MOSTRA L'ERRORE GREZZO DI PLAYFAB PER CAPIRE COSA NON VA
                     alert('Errore PlayFab: ' + JSON.stringify(data));
                 }
             })
@@ -670,7 +670,7 @@
                 if (movement > threshold) {
                     localShakes++;
                     lastShakeTime = currentTime;
-                    document.getElementById('scoreDisplay').innerText, localShakes;
+                    document.getElementById('scoreDisplay').innerText = localShakes;
                     if (navigator.vibrate) { navigator.vibrate(40); }
                 }
             }
