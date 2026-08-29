@@ -156,6 +156,7 @@
 </head>
 <body>
 
+    <!-- Schermata 1: Inserimento PIN -->
     <div id="screen-pin" class="screen active">
         <img src="TitleLogo.png" alt="Chaos Party" class="game-logo" onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
         <h1 id="fallback-title" style="color: #ff0055; font-size: 24px; display:none; margin-bottom:10px;">CHAOS PARTY</h1>
@@ -165,6 +166,7 @@
         <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
     </div>
 
+    <!-- Schermata di Ritaglio (Crop) Quadrato -->
     <div id="screen-crop" class="screen">
         <h1 style="color: #00ff66; font-size: 18px; margin-top:0;">RITAGLIA FOTO</h1>
         <p class="crop-instructions">Trascina per centrare l'immagine</p>
@@ -177,6 +179,7 @@
         <button class="btn" onclick="confirmCrop()">CONFERMA RITAGLIO</button>
     </div>
 
+    <!-- Schermata 2: Profilo -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00ff66; font-size: 20px; margin-top:0;">IL TUO PROFILO</h1>
         
@@ -193,12 +196,14 @@
         <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
+    <!-- Schermata 3: Lobby -->
     <div id="screen-lobby" class="screen">
         <h2 style="font-size: 18px; color: #00ff66;">SEI DENTRO!</h2>
         <p style="font-size: 13px; color: #aaa; margin: 15px 0;">Tutti pronti per iniziare?</p>
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
+    <!-- Schermata 4: Squadra e Nome Squadra -->
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 20px; color: #ff0055;">SQUADRA</h1>
         <p id="teamSubtitle" style="font-size: 13px; color: #aaa;">In attesa del nome squadra...</p>
@@ -209,11 +214,13 @@
         </div>
     </div>
 
+    <!-- Schermata 5: Roulette Minigioco -->
     <div id="screen-roulette" class="screen">
         <h1 style="color: #ff0055; font-size: 20px;">ROULETTE</h1>
         <p style="font-size: 13px; color: #00ff66; margin-top: 15px;">Estrazione minigioco in corso...</p>
     </div>
 
+    <!-- Schermata 6: Tutorial con Tasto Pronto -->
     <div id="screen-tutorial" class="screen">
         <h1 style="color: #00ff66; font-size: 20px;">TAGLIABOSCHI</h1>
         <p style="font-size: 13px; color: #aaa; margin: 12px 0;">Scuota il telefono per tagliare il tronco!</p>
@@ -221,6 +228,7 @@
         <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;">Premi pronto per attivare i sensori.</p>
     </div>
 
+    <!-- Schermata 7: Minigioco in Corso -->
     <div id="screen-minigame" class="screen">
         <h1 style="color: #ff0055; font-size: 20px;">TAGLIA IL TRONCO!</h1>
         <p style="font-size: 12px; color: #aaa; margin-bottom: 10px;">Daje con gli scossoni!</p>
@@ -326,7 +334,6 @@
                 CreateAccount: true
             });
 
-            // Login pulito e sicuro senza blocchi di gruppo immediati
             fetch("https://" + titleId + ".playfabapi.com/Client/LoginWithCustomID", {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
@@ -479,22 +486,13 @@
                 minigameReady: false
             });
 
-            // Aggiunge l'utente alla stanza e aggiorna i dati in un unico flusso sicuro
-            fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
-                method: 'POST',
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
-            })
-            .catch(() => {}) // Se la stanza non esiste ancora, la ignora e procede comunque
-            .then(() => {
-                return fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({ 
-                        SharedGroupId: roomCode, 
-                        Data: { [playFabId]: profileData } 
-                    })
-                });
+                body: JSON.stringify({ 
+                    SharedGroupId: roomCode, 
+                    Data: { [playFabId]: profileData } 
+                })
             })
             .then(res => res.json())
             .then(data => {
@@ -504,7 +502,7 @@
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
                 } else {
-                    alert('Errore di connessione alla stanza. Riprova.');
+                    alert('Stanza non trovata o PIN errato. Controlla lo schermo.');
                     btn.innerText = "ENTRA IN PARTITA";
                 }
             })
