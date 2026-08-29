@@ -275,28 +275,58 @@
 
             setupCropListeners();
 
-            // --- CONTROLLO MEMORIA SESSIONE (Ricarica automatica) ---
+            // --- TENTATIVO DI RIPRISTINO SESSIONE BLINDATO ---
             let savedRoom = localStorage.getItem('cp_room');
-            let savedTicket = localStorage.getItem('cp_ticket');
-            let savedId = localStorage.getItem('cp_id');
             let savedNick = localStorage.getItem('cp_nick');
             let savedAvatar = localStorage.getItem('cp_avatar');
 
-            if (savedRoom && savedTicket && savedId && savedNick) {
+            if (savedRoom && savedNick) {
                 roomCode = savedRoom;
-                sessionTicket = savedTicket;
-                playFabId = savedId;
                 document.getElementById('nicknameInput').value = savedNick;
                 if (savedAvatar) {
                     avatarBase64 = savedAvatar;
                     document.getElementById('avatarPreview').src = avatarBase64;
                 }
 
-                // Salta direttamente alla lobby e riattiva il loop e l'heartbeat
-                document.getElementById('screen-pin').classList.remove('active');
-                document.getElementById('screen-lobby').classList.add('active');
-                pollInterval = setInterval(checkGameLoop, 2000);
-                startHeartbeat();
+                // Riacceddi silenziosamente a PlayFab per generare un ticket fresco
+                var requestBody = JSON.stringify({
+                    TitleId: titleId,
+                    CustomId: localStorage.getItem('cp_customid') || ('phone_' + Math.random().toString(36).substring(2)),
+                    CreateAccount: true
+                });
+
+                fetch("https://" + titleId + ".playfabapi.com/Client/LoginWithCustomID", {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.code === 200) {
+                        sessionTicket = data.data.SessionTicket;
+                        playFabId = data.data.PlayFabId;
+                        localStorage.setItem('cp_customid', data.data.PlayFabId); // Salva ID stabile
+
+                        // Riaggancia alla stanza
+                        return fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                            body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
+                        });
+                    } else {
+                        throw new Error("Sessione scaduta");
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // Salta alla lobby se tutto OK
+                    document.getElementById('screen-pin').classList.remove('active');
+                    document.getElementById('screen-lobby').classList.add('active');
+                    pollInterval = setInterval(checkGameLoop, 2000);
+                    startHeartbeat();
+                })
+                .catch(err => {
+                    // Se qualcosa va storto (stanza chiusa o errore), pulisce la memoria e rimette il PIN pulito
+                    localStorage.clear();
+                });
             }
         };
 
@@ -306,9 +336,10 @@
             roomCode = document.getElementById('pinInput').value.trim();
             if(roomCode.length !== 4) { alert('PIN non valido'); btn.innerText = "AVANTI"; return; }
 
+            var customIdKey = 'phone_' + Math.random().toString(36).substring(2);
             var requestBody = JSON.stringify({
                 TitleId: titleId,
-                CustomId: 'phone_' + Math.random().toString(36).substring(2),
+                CustomId: customIdKey,
                 CreateAccount: true
             });
 
@@ -320,6 +351,7 @@
                 if (data.code === 200) {
                     sessionTicket = data.data.SessionTicket;
                     playFabId = data.data.PlayFabId;
+                    localStorage.setItem('cp_customid', playFabId);
                     
                     return fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
                         method: 'POST',
@@ -332,6 +364,7 @@
             })
             .then(res => res.json())
             .then(data => {
+                localStorage.setItem('cp_room', roomCode);
                 document.getElementById('screen-pin').classList.remove('active');
                 document.getElementById('screen-profile').classList.add('active');
             })
@@ -452,10 +485,6 @@
             var btn = document.getElementById('enterBtn');
             btn.innerText = "ACCESSO IN CORSO...";
 
-            // Salva in localStorage per il recupero in caso di ricarica pagina
-            localStorage.setItem('cp_room', roomCode);
-            localStorage.setItem('cp_ticket', sessionTicket);
-            localStorage.setItem('cp_id', playFabId);
             localStorage.setItem('cp_nick', nickname);
             localStorage.setItem('cp_avatar', avatarBase64);
 
