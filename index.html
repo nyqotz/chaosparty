@@ -341,17 +341,17 @@
             })
             .then(res => res.json())
             .then(data => {
+                btn.innerText = "AVANTI";
                 if (data.code === 200) {
                     sessionTicket = data.data.SessionTicket;
                     playFabId = data.data.PlayFabId;
                     localStorage.setItem('cp_customid', playFabId);
                     localStorage.setItem('cp_room', roomCode);
 
-                    btn.innerText = "AVANTI";
                     document.getElementById('screen-pin').classList.remove('active');
                     document.getElementById('screen-profile').classList.add('active');
                 } else {
-                    throw new Error("Login fallito");
+                    alert('Errore PlayFab: ' + (data.errorMessage || "Login fallito"));
                 }
             })
             .catch(err => {
@@ -486,16 +486,27 @@
                 minigameReady: false
             });
 
-            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                method: 'POST', 
+            // 1. Prima si aggiunge ufficialmente come membro alla stanza esistente di Unity
+            fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ 
-                    SharedGroupId: roomCode, 
-                    Data: { [playFabId]: profileData } 
-                })
+                body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
+            })
+            .then(res => res.json())
+            .then(addRes => {
+                // 2. Subito dopo invia i dati del profilo nella stanza
+                return fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({ 
+                        SharedGroupId: roomCode, 
+                        Data: { [playFabId]: profileData } 
+                    })
+                });
             })
             .then(res => res.json())
             .then(data => {
+                btn.innerText = "ENTRA IN PARTITA";
                 if (data.code === 200) {
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-lobby').classList.add('active');
@@ -503,12 +514,11 @@
                     startHeartbeat();
                 } else {
                     alert('Errore PlayFab: ' + (data.errorMessage || data.error));
-                    btn.innerText = "ENTRA IN PARTITA";
                 }
             })
             .catch(err => {
-                alert('Errore di rete: ' + err);
                 btn.innerText = "ENTRA IN PARTITA";
+                alert('Errore di connessione alla stanza. Assicurati che il PIN sia corretto.');
             });
         }
 
