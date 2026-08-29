@@ -475,41 +475,36 @@
             localStorage.setItem('cp_nick', nickname);
             localStorage.setItem('cp_avatar', avatarBase64);
 
-            var profileData = JSON.stringify({
-                nickname: nickname, 
-                avatar: avatarBase64, 
-                ready: false,
-                team: "", 
-                isCaptain: false, 
-                ping: Date.now(), 
-                score: 0,
-                minigameReady: false
-            });
-
-            // Metodo nativo pulito: sfrutta l'aggiornamento diretto dei dati della Shared Group associati al proprio ID
-            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+            // Chiama la funzione CloudScript "JoinRoom" presente nel tuo CloudScript di PlayFab
+            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                 body: JSON.stringify({ 
-                    SharedGroupId: roomCode, 
-                    Data: { [playFabId]: profileData } 
+                    FunctionName: "JoinRoom", 
+                    FunctionParameter: { 
+                        roomId: roomCode, 
+                        nickname: nickname, 
+                        avatar: avatarBase64 
+                    } 
                 })
             })
             .then(res => res.json())
             .then(data => {
                 btn.innerText = "ENTRA IN PARTITA";
-                if (data.code === 200) {
+                // Controlla la risposta della funzione CloudScript
+                if (data.code === 200 && data.data && data.data.FunctionResult && data.data.FunctionResult.success) {
                     document.getElementById('screen-profile').classList.remove('active');
                     document.getElementById('screen-lobby').classList.add('active');
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
                 } else {
-                    alert('Errore PlayFab: ' + (data.errorMessage || data.error));
+                    var errDesc = (data.data && data.data.Error) ? data.data.Error.Message : (data.errorMessage || "Errore di esecuzione CloudScript");
+                    alert('Errore CloudScript: ' + errDesc);
                 }
             })
             .catch(err => {
                 btn.innerText = "ENTRA IN PARTITA";
-                alert('Errore di connessione alla stanza. Assicurati che il PIN sia corretto.');
+                alert('Errore di rete o connessione: ' + err);
             });
         }
 
@@ -522,6 +517,7 @@
                     team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
                     minigameReady: isMinigameReady
                 });
+                // Aggiornamento heartbeat tramite client nativo (ora che JoinRoom ha aggiunto il giocatore come membro)
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                     body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
