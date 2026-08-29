@@ -187,7 +187,7 @@
         
         <label for="fileInput" class="avatar-label">
             <div class="avatar-container">
-                <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+                <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3 z'/></svg>">
             </div>
         </label>
         <div class="avatar-hint">Tocca per cambiare foto</div>
@@ -450,15 +450,14 @@
 
         function confirmCrop() {
             let finalCanvas = document.createElement('canvas');
-            let finalSize = 120; // Ridotto a 120x120 per alleggerire drasticamente i dati
+            let finalSize = 60; // Risoluzione ultra-leggera per rientrare nei limiti CloudScript
             finalCanvas.width = finalSize;
             finalCanvas.height = finalSize;
             let finalCtx = finalCanvas.getContext('2d');
 
             finalCtx.drawImage(canvas, 0, 0, renderSize, renderSize, 0, 0, finalSize, finalSize);
 
-            // Compressione JPEG forte al 70% per rientrare nei limiti di dimensione dei parametri CloudScript
-            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.7);
+            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.5);
             document.getElementById('avatarPreview').src = avatarBase64;
 
             document.getElementById('screen-crop').classList.remove('active');
