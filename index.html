@@ -262,7 +262,6 @@
         var localShakes = 0;
         var lastShakeTime = 0;
 
-        // Variabili per il sistema di Crop Circolare
         let cropImage = new Image();
         let canvas, ctx;
         let imgX = 0, imgY = 0, imgScale = 1;
@@ -311,7 +310,6 @@
             });
         }
 
-        // --- Logica di Ritaglio Circolare Corretta e Centrata ---
         function initCrop(input) {
             var file = input.files[0];
             if (!file) return;
@@ -407,20 +405,34 @@
             document.getElementById('screen-crop').classList.remove('active');
             document.getElementById('screen-profile').classList.add('active');
         }
-        // ---------------------------------------------
 
         function saveProfile() {
             var nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname'); return; }
             if(!avatarBase64) { alert('Scegli e ritaglia una foto per il tuo avatar!'); return; }
 
-            var requestBody = JSON.stringify({
-                FunctionName: "JoinRoom",
-                FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 }
+            var btn = document.getElementById('enterBtn');
+            btn.innerText = "ACCESSO IN CORSO...";
+
+            var profileData = JSON.stringify({
+                nickname: nickname, 
+                avatar: avatarBase64, 
+                ready: false,
+                team: "", 
+                isCaptain: false, 
+                ping: Date.now(), 
+                score: 0,
+                minigameReady: false
             });
 
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket }, body: requestBody
+            // Registra direttamente i dati nella stanza condivisa di PlayFab
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                body: JSON.stringify({ 
+                    SharedGroupId: roomCode, 
+                    Data: { [playFabId]: profileData } 
+                })
             })
             .then(res => res.json())
             .then(data => {
@@ -429,7 +441,14 @@
                     document.getElementById('screen-lobby').classList.add('active');
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
+                } else {
+                    alert('Errore di connessione alla stanza. Riprova.');
+                    btn.innerText = "ENTRA IN PARTITA";
                 }
+            })
+            .catch(err => {
+                alert('Errore di rete. Controlla la connessione.');
+                btn.innerText = "ENTRA IN PARTITA";
             });
         }
 
