@@ -20,7 +20,6 @@
             overflow: hidden; 
         }
 
-        /* Stile Arcade / Pop-Art ispirato al logo */
         .screen { 
             display: none; 
             width: 90%; 
@@ -35,14 +34,14 @@
         
         .active { display: block !important; }
 
-        /* Logo principale al posto del testo */
+        /* Logo principale ridimensionato e protetto */
         .game-logo {
             width: 100%;
-            max-width: 240px;
+            max-width: 260px;
             height: auto;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 20px auto;
             display: block;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.8));
         }
 
         input[type="text"], input[type="number"] { 
@@ -84,7 +83,6 @@
             box-shadow: 0 1px 0 #00993d;
         }
 
-        /* Avatar e Stile Cerchio 1-2-Switch */
         .avatar-container {
             position: relative;
             width: 110px;
@@ -132,8 +130,10 @@
 
     <!-- Schermata 1: Inserimento PIN -->
     <div id="screen-pin" class="screen active">
+        <!-- Inserisci qui il file immagine caricato su GitHub -->
         <img src="TitleLogo.png" alt="Chaos Party" class="game-logo" onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
         <h1 id="fallback-title" style="color: #ff0055; font-size: 26px; display:none; margin-bottom:10px;">CHAOS PARTY</h1>
+        
         <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Inserisci il PIN della stanza:</p>
         <input type="number" id="pinInput" placeholder="----" maxlength="4">
         <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
@@ -250,10 +250,9 @@
                 var img = new Image();
                 img.onload = function () {
                     var canvas = document.createElement('canvas');
-                    var MAX_SIZE = 120; // Aumentato leggermente per renderlo più nitido nello stile 1-2-Switch
+                    var MAX_SIZE = 120;
                     var width = img.width, height = img.height;
                     
-                    // Taglio automatico centrato quadrato (Stile Everybody 1-2-Switch)
                     var minEdge = Math.min(width, height);
                     var startX = (width - minEdge) / 2;
                     var startY = (height - minEdge) / 2;
