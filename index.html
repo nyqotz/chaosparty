@@ -294,22 +294,15 @@
                         sessionTicket = data.data.SessionTicket;
                         playFabId = data.data.PlayFabId;
 
-                        return fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                            body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
-                        }).catch(() => { return null; });
+                        document.getElementById('screen-pin').classList.remove('active');
+                        document.getElementById('screen-lobby').classList.add('active');
+                        pollInterval = setInterval(checkGameLoop, 2000);
+                        startHeartbeat();
                     } else {
-                        throw new Error();
+                        localStorage.clear();
                     }
                 })
-                .then(() => {
-                    document.getElementById('screen-pin').classList.remove('active');
-                    document.getElementById('screen-lobby').classList.add('active');
-                    pollInterval = setInterval(checkGameLoop, 2000);
-                    startHeartbeat();
-                })
-                .catch(err => {
+                .catch(() => {
                     localStorage.clear();
                 });
             }
@@ -333,6 +326,7 @@
                 CreateAccount: true
             });
 
+            // Login pulito e sicuro senza blocchi di gruppo immediati
             fetch("https://" + titleId + ".playfabapi.com/Client/LoginWithCustomID", {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
@@ -346,23 +340,16 @@
                     localStorage.setItem('cp_customid', playFabId);
                     localStorage.setItem('cp_room', roomCode);
 
-                    return fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                        body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
-                    }).catch(() => { return null; });
+                    btn.innerText = "AVANTI";
+                    document.getElementById('screen-pin').classList.remove('active');
+                    document.getElementById('screen-profile').classList.add('active');
                 } else {
                     throw new Error("Login fallito");
                 }
             })
-            .then(() => {
-                btn.innerText = "AVANTI";
-                document.getElementById('screen-pin').classList.remove('active');
-                document.getElementById('screen-profile').classList.add('active');
-            })
             .catch(err => {
                 console.error(err);
-                alert('Errore di connessione a PlayFab. Riprova.');
+                alert('Impossibile connettersi a PlayFab. Riprova.');
                 btn.innerText = "AVANTI";
             });
         }
@@ -492,13 +479,22 @@
                 minigameReady: false
             });
 
-            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                method: 'POST', 
+            // Aggiunge l'utente alla stanza e aggiorna i dati in un unico flusso sicuro
+            fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ 
-                    SharedGroupId: roomCode, 
-                    Data: { [playFabId]: profileData } 
-                })
+                body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
+            })
+            .catch(() => {}) // Se la stanza non esiste ancora, la ignora e procede comunque
+            .then(() => {
+                return fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                    body: JSON.stringify({ 
+                        SharedGroupId: roomCode, 
+                        Data: { [playFabId]: profileData } 
+                    })
+                });
             })
             .then(res => res.json())
             .then(data => {
@@ -512,7 +508,7 @@
                     btn.innerText = "ENTRA IN PARTITA";
                 }
             })
-            .catch(err => {
+            .catch(() => {
                 alert('Errore di rete. Controlla la connessione.');
                 btn.innerText = "ENTRA IN PARTITA";
             });
@@ -530,7 +526,7 @@
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                     body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
-                }).catch(e => {});
+                }).catch(() => {});
             }, 5000);
         }
 
@@ -546,7 +542,7 @@
             fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                 body: JSON.stringify({ FunctionName: "SetReady", FunctionParameter: { roomId: roomCode, ready: isReady } })
-            });
+            }).catch(() => {});
         }
 
         function submitTeamName() {
@@ -569,7 +565,7 @@
                 } else {
                     alert('Errore salvataggio nome');
                 }
-            });
+            }).catch(() => {});
         }
 
         function setMinigameReady() {
@@ -587,7 +583,7 @@
                         document.getElementById('sensorStatus').innerText = "Sensori attivi!";
                         document.getElementById('sensorStatus').style.color = "#00ff66";
                     }
-                }).catch(console.error);
+                }).catch(() => {});
             } else {
                 window.addEventListener('devicemotion', handleMotion);
                 document.getElementById('sensorStatus').innerText = "Sensori attivi!";
@@ -603,7 +599,7 @@
             fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                 body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
-            }).catch(e => {});
+            }).catch(() => {});
         }
 
         function checkGameLoop() {
@@ -637,7 +633,6 @@
                             document.getElementById('teamTitle').innerText = customName.toUpperCase();
                             document.getElementById('teamSubtitle').innerText = "Squadra " + myTeamColor;
                         } else {
-                            dataObj = {}; // fix scope
                             document.getElementById('teamTitle').innerText = "SQUADRA " + myTeamColor.toUpperCase();
                             document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + myTeamColor;
                         }
@@ -650,7 +645,7 @@
                         }
                     }
                 }
-            });
+            }).catch(() => {});
         }
 
         function handleStateChange(state) {
@@ -662,7 +657,6 @@
             } else if (state === "TEAM_NAMING") {
                 document.getElementById('screen-team').classList.add('active');
             } else if (state === "ROULETTE") {
-                document.getElementById('screen-routertte') // safe fallback
                 document.getElementById('screen-roulette').classList.add('active');
             } else if (state === "TUTORIAL") {
                 document.getElementById('screen-tutorial').classList.add('active');
