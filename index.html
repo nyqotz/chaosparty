@@ -486,23 +486,14 @@
                 minigameReady: false
             });
 
-            // 1. Prima si aggiunge ufficialmente come membro alla stanza esistente di Unity
-            fetch("https://" + titleId + ".playfabapi.com/Client/AddSharedGroupMembers", {
-                method: 'POST',
+            // Scrive direttamente i dati associati al proprio ID nella Shared Group senza passare per l'aggiunta forzata dei membri
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ SharedGroupId: roomCode, PlayFabIds: [playFabId] })
-            })
-            .then(res => res.json())
-            .then(addRes => {
-                // 2. Subito dopo invia i dati del profilo nella stanza
-                return fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({ 
-                        SharedGroupId: roomCode, 
-                        Data: { [playFabId]: profileData } 
-                    })
-                });
+                body: JSON.stringify({ 
+                    SharedGroupId: roomCode, 
+                    Data: { [playFabId]: profileData } 
+                })
             })
             .then(res => res.json())
             .then(data => {
