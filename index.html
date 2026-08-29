@@ -475,7 +475,7 @@
             localStorage.setItem('cp_nick', nickname);
             localStorage.setItem('cp_avatar', avatarBase64);
 
-            var profileData = {
+            var profileData = JSON.stringify({
                 nickname: nickname, 
                 avatar: avatarBase64, 
                 ready: false,
@@ -484,20 +484,15 @@
                 ping: Date.now(), 
                 score: 0,
                 minigameReady: false
-            };
+            });
 
-            // Invece di scrivere direttamente sulla Shared Group (bloccata da PlayFab Client), 
-            // usiamo una chiamata Cloud Script sicura che ha i privilegi amministrativi per aggiornare la stanza
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
+            // Metodo nativo pulito: sfrutta l'aggiornamento diretto dei dati della Shared Group associati al proprio ID
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                 body: JSON.stringify({ 
-                    FunctionName: "UpdatePlayerProfile", 
-                    FunctionParameter: { 
-                        roomId: roomCode, 
-                        playerId: playFabId, 
-                        profileJson: JSON.stringify(profileData) 
-                    } 
+                    SharedGroupId: roomCode, 
+                    Data: { [playFabId]: profileData } 
                 })
             })
             .then(res => res.json())
@@ -509,14 +504,12 @@
                     pollInterval = setInterval(checkGameLoop, 2000);
                     startHeartbeat();
                 } else {
-                    // Fallback di emergenza: se non hai configurato la funzione Cloud Script, 
-                    // usiamo un salvataggio utente standard o mostriamo il dettaglio
-                    alert('Errore Cloud Script: Assicurati di aver creato la funzione su PlayFab o usa il metodo nativo.');
+                    alert('Errore PlayFab: ' + (data.errorMessage || data.error));
                 }
             })
             .catch(err => {
                 btn.innerText = "ENTRA IN PARTITA";
-                alert('Errore di connessione. Riprova.');
+                alert('Errore di connessione alla stanza. Assicurati che il PIN sia corretto.');
             });
         }
 
@@ -529,9 +522,9 @@
                     team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
                     minigameReady: isMinigameReady
                 });
-                fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
+                fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({ FunctionName: "UpdatePlayerProfile", FunctionParameter: { roomId: roomCode, playerId: playFabId, profileJson: profileData } })
+                    body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
                 }).catch(() => {});
             }, 5000);
         }
@@ -559,9 +552,9 @@
             var dataObj = {};
             dataObj[teamKey] = teamName;
 
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ FunctionName: "UpdateTeamName", FunctionParameter: { roomId: roomCode, teamKey: teamKey, teamName: teamName } })
+                body: JSON.stringify({ SharedGroupId: roomCode, Data: dataObj })
             })
             .then(res => res.json())
             .then(data => {
@@ -602,9 +595,9 @@
                 team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
                 minigameReady: true
             });
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ FunctionName: "UpdatePlayerProfile", FunctionParameter: { roomId: roomCode, playerId: playFabId, profileJson: profileData } })
+                body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
             }).catch(() => {});
         }
 
