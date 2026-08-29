@@ -34,10 +34,9 @@
         
         .active { display: block !important; }
 
-        /* Logo principale ridimensionato e protetto */
         .game-logo {
             width: 100%;
-            max-width: 260px;
+            max-width: 270px;
             height: auto;
             margin: 0 auto 20px auto;
             display: block;
@@ -83,16 +82,28 @@
             box-shadow: 0 1px 0 #00993d;
         }
 
-        .avatar-container {
+        /* Avatar Cliccabile Stile 1-2-Switch */
+        .avatar-label {
+            display: inline-block;
+            cursor: pointer;
             position: relative;
+            margin: 0 auto 15px auto;
+        }
+
+        .avatar-container {
             width: 110px;
             height: 110px;
-            margin: 0 auto 15px auto;
             border-radius: 50%;
             border: 4px solid #00ff66;
             overflow: hidden;
             background: #0f0f15;
             box-shadow: 0 0 15px rgba(0, 255, 102, 0.4);
+            transition: transform 0.1s ease, border-color 0.2s ease;
+        }
+
+        .avatar-label:active .avatar-container {
+            transform: scale(0.95);
+            border-color: #ff0055;
         }
 
         .avatar-preview { 
@@ -101,23 +112,13 @@
             object-fit: cover; 
         }
 
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
+        .avatar-hint {
+            font-size: 11px;
+            color: #00ff66;
+            margin-top: -10px;
             margin-bottom: 15px;
-        }
-
-        .file-input-wrapper input[type=file] {
-            font-size: 14px;
-            color: #aaa;
-            width: 100%;
-            padding: 10px;
-            background: #0f0f15;
-            border: 2px dashed #ff0055;
-            border-radius: 10px;
-            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         h1, h2 {
@@ -138,16 +139,21 @@
         <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
     </div>
 
-    <!-- Schermata 2: Profilo e Avatar Circolare -->
+    <!-- Schermata 2: Profilo con Avatar Cliccabile -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00ff66; font-size: 22px; margin-top:0;">IL TUO PROFILO</h1>
-        <div class="avatar-container">
-            <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
-        </div>
+        
+        <!-- Input file nascosto ma attivato cliccando sull'avatar -->
+        <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="display: none;">
+        
+        <label for="fileInput" class="avatar-label">
+            <div class="avatar-container">
+                <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+            </div>
+        </label>
+        <div class="avatar-hint">Tocca per cambiare foto</div>
+
         <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
-        <div class="file-input-wrapper">
-            <input type="file" id="fileInput" accept="image/*" onchange="previewFile()">
-        </div>
         <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
