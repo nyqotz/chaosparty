@@ -82,12 +82,12 @@
             box-shadow: 0 1px 0 #00993d;
         }
 
-        /* Avatar Cliccabile Stile 1-2-Switch */
+        /* Avatar Cliccabile */
         .avatar-label {
             display: inline-block;
             cursor: pointer;
             position: relative;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 5px auto;
         }
 
         .avatar-container {
@@ -115,10 +115,47 @@
         .avatar-hint {
             font-size: 11px;
             color: #00ff66;
-            margin-top: -10px;
             margin-bottom: 15px;
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+
+        /* Schermata / Modale di Ritaglio Circolare */
+        #screen-crop {
+            max-width: 400px;
+        }
+        
+        .crop-container {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            margin: 0 auto 15px auto;
+            overflow: hidden;
+            background: #000;
+            border-radius: 15px;
+            border: 2px solid #333;
+            touch-action: none;
+        }
+
+        #cropCanvas {
+            position: absolute;
+            cursor: grab;
+        }
+
+        /* Maschera circolare in sovraimpressione */
+        .crop-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.75);
+            border-radius: 50%;
+            border: 3px solid #00ff66;
+        }
+
+        .crop-instructions {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 15px;
         }
 
         h1, h2 {
@@ -139,16 +176,29 @@
         <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
     </div>
 
-    <!-- Schermata 2: Profilo con Avatar Cliccabile -->
+    <!-- Schermata di Ritaglio (Crop) Circolare -->
+    <div id="screen-crop" class="screen">
+        <h1 style="color: #00ff66; font-size: 20px; margin-top:0;">RITAGLIA FOTO</h1>
+        <p class="crop-instructions">Trascina per centrare il tuo volto nel cerchio</p>
+        
+        <div class="crop-container" id="cropContainer">
+            <canvas id="cropCanvas"></canvas>
+            <div class="crop-overlay"></div>
+        </div>
+
+        <input type="range" id="zoomRange" min="0.5" max="3" step="0.05" value="1" style="width: 100%; margin-bottom: 15px; accent-color: #00ff66;" oninput="adjustZoom(this.value)">
+        <button class="btn" onclick="confirmCrop()">CONFERMA RITAGLIO</button>
+    </div>
+
+    <!-- Schermata 2: Profilo -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00ff66; font-size: 22px; margin-top:0;">IL TUO PROFILO</h1>
         
-        <!-- Input file nascosto ma attivato cliccando sull'avatar -->
-        <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="display: none;">
+        <input type="file" id="fileInput" accept="image/*" onchange="initCrop(this)" style="display: none;">
         
         <label for="fileInput" class="avatar-label">
             <div class="avatar-container">
-                <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+                <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3 z'/></svg>">
             </div>
         </label>
         <div class="avatar-hint">Tocca per cambiare foto</div>
@@ -213,12 +263,27 @@
         var localShakes = 0;
         var lastShakeTime = 0;
 
+        // Variabili per il sistema di Crop Circolare
+        let cropImage = new Image();
+        let canvas, ctx;
+        let imgX = 0, imgY = 0, imgScale = 1;
+        let isDragging = false;
+        let startX, startY;
+        let containerSize = 260;
+
         window.onload = function() {
             try {
                 var urlParams = new URLSearchParams(window.location.search);
                 var r = urlParams.get('room');
                 if(r) { document.getElementById('pinInput').value = r; }
             } catch(e) {}
+
+            canvas = document.getElementById('cropCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = containerSize;
+            canvas.height = containerSize;
+
+            setupCropListeners();
         };
 
         function joinRoom() {
@@ -247,37 +312,118 @@
             });
         }
 
-        function previewFile() {
-            var file = document.getElementById('fileInput').files[0];
+        // --- Logica di Ritaglio Circolare Interattivo ---
+        function initCrop(input) {
+            var file = input.files[0];
             if (!file) return;
             var reader = new FileReader();
             reader.onload = function (e) {
-                var img = new Image();
-                img.onload = function () {
-                    var canvas = document.createElement('canvas');
-                    var MAX_SIZE = 120;
-                    var width = img.width, height = img.height;
-                    
-                    var minEdge = Math.min(width, height);
-                    var startX = (width - minEdge) / 2;
-                    var startY = (height - minEdge) / 2;
+                cropImage.onload = function () {
+                    // Passa alla schermata di ritaglio
+                    document.getElementById('screen-profile').classList.remove('active');
+                    document.getElementById('screen-crop').classList.add('active');
 
-                    canvas.width = MAX_SIZE; 
-                    canvas.height = MAX_SIZE;
-                    var ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, startX, startY, minEdge, minEdge, 0, 0, MAX_SIZE, MAX_SIZE);
-                    
-                    avatarBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                    document.getElementById('avatarPreview').src = avatarBase64;
+                    // Calcola la scala iniziale per riempire il cerchio
+                    let minDim = Math.min(cropImage.width, cropImage.height);
+                    imgScale = containerSize / minDim;
+                    document.getElementById('zoomRange').value = imgScale;
+
+                    imgX = (containerSize - cropImage.width * imgScale) / 2;
+                    imgY = (containerSize - cropImage.height * imgScale) / 2;
+
+                    drawCanvas();
                 }
-                img.src = e.target.result;
+                cropImage.src = e.target.result;
             }
             reader.readAsDataURL(file);
+            input.value = ""; // Resetta l'input per permettere lo stesso file
         }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(imgX, imgY);
+            ctx.scale(imgScale, imgScale);
+            ctx.drawImage(cropImage, 0, 0);
+            ctx.restore();
+        }
+
+        function setupCropListeners() {
+            let container = document.getElementById('cropContainer');
+
+            container.addEventListener('mousedown', startDrag);
+            container.addEventListener('mousemove', onDrag);
+            container.addEventListener('mouseup', endDrag);
+            container.addEventListener('mouseleave', endDrag);
+
+            container.addEventListener('touchstart', (e) => { startDrag(e.touches[0]); });
+            container.addEventListener('touchmove', (e) => { onDrag(e.touches[0]); });
+            container.addEventListener('touchend', endDrag);
+        }
+
+        function startDrag(e) {
+            isDragging = true;
+            startX = e.clientX - imgX;
+            startY = e.clientY - imgY;
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            imgX = e.clientX - startX;
+            imgY = e.clientY - startY;
+            drawCanvas();
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        function adjustZoom(val) {
+            let oldScale = imgScale;
+            imgScale = parseFloat(val);
+            
+            // Zoom incentrato sul container
+            let center = containerSize / 2;
+            imgX = center - (center - imgX) * (imgScale / oldScale);
+            imgY = center - (center - imgY) * (imgScale / oldScale);
+
+            drawCanvas();
+        }
+
+        function confirmCrop() {
+            // Crea un canvas definitivo ad alta definizione per l'avatar circolare finale
+            let finalCanvas = document.createElement('canvas');
+            let finalSize = 200; // Ottima risoluzione pulita per la TV
+            finalCanvas.width = finalSize;
+            finalCanvas.height = finalSize;
+            let finalCtx = finalCanvas.getContext('2d');
+
+            // Ritaglia esattamente l'area racchiusa nel cerchio
+            finalCtx.beginPath();
+            finalCtx.arc(finalSize / 2, finalSize / 2, finalSize / 2, 0, Math.PI * 2, true);
+            finalCtx.clip();
+
+            // Calcola le proporzioni dal canvas di anteprima a quello finale
+            let ratio = finalSize / containerSize;
+            finalCtx.drawImage(
+                canvas, 
+                0, 0, canvas.width, canvas.height, 
+                0, 0, finalSize, finalSize
+            );
+
+            avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.85);
+            document.getElementById('avatarPreview').src = avatarBase64;
+
+            // Torna alla schermata profilo
+            document.getElementById('screen-crop').classList.remove('active');
+            document.getElementById('screen-profile').classList.add('active');
+        }
+        // ---------------------------------------------
 
         function saveProfile() {
             var nickname = document.getElementById('nicknameInput').value.trim();
             if(!nickname) { alert('Inserisci un nickname'); return; }
+            if(!avatarBase64) { alert('Scegli e ritaglia una foto per il tuo avatar!'); return; }
 
             var requestBody = JSON.stringify({
                 FunctionName: "JoinRoom",
