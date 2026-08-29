@@ -6,46 +6,165 @@
     <title>Chaos Party Controller</title>
     <style>
         * { box-sizing: border-box; user-select: none; font-family: 'Arial Black', sans-serif; }
-        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        .screen { display: none; width: 90%; max-width: 350px; background: #1e1e1e; padding: 25px; border-radius: 15px; border: 3px solid #333; text-align: center; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+        
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            background: #0b0b10; 
+            color: white; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden; 
+        }
+
+        /* Stile Arcade / Pop-Art ispirato al logo */
+        .screen { 
+            display: none; 
+            width: 90%; 
+            max-width: 380px; 
+            background: #181822; 
+            padding: 25px; 
+            border-radius: 20px; 
+            border: 4px solid #ff0055; 
+            text-align: center; 
+            box-shadow: 0 10px 25px rgba(255, 0, 85, 0.3), inset 0 0 15px rgba(0,0,0,0.8); 
+        }
+        
         .active { display: block !important; }
-        input[type="text"], input[type="number"] { width: 100%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #333; background: #2a2a2a; color: white; margin-bottom: 15px; }
-        .btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #00FF66; color: #121212; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
-        .avatar-preview { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid #8B4513; margin: 0 auto 15px auto; display: block; background: #2a2a2a; }
+
+        /* Logo principale al posto del testo */
+        .game-logo {
+            width: 100%;
+            max-width: 240px;
+            height: auto;
+            margin: 0 auto 15px auto;
+            display: block;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+        }
+
+        input[type="text"], input[type="number"] { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 20px; 
+            text-align: center; 
+            border-radius: 12px; 
+            border: 3px solid #ff0055; 
+            background: #0f0f15; 
+            color: #ffffff; 
+            margin-bottom: 15px; 
+            outline: none;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: #00ff66;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.5), inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .btn { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 18px; 
+            font-weight: bold; 
+            background-color: #00ff66; 
+            color: #0b0b10; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            margin-top: 10px; 
+            box-shadow: 0 5px 0 #00993d;
+            transition: all 0.1s ease;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #00993d;
+        }
+
+        /* Avatar e Stile Cerchio 1-2-Switch */
+        .avatar-container {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            margin: 0 auto 15px auto;
+            border-radius: 50%;
+            border: 4px solid #00ff66;
+            overflow: hidden;
+            background: #0f0f15;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.4);
+        }
+
+        .avatar-preview { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 14px;
+            color: #aaa;
+            width: 100%;
+            padding: 10px;
+            background: #0f0f15;
+            border: 2px dashed #ff0055;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        h1, h2 {
+            text-shadow: 2px 2px 0px #000;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
 
     <!-- Schermata 1: Inserimento PIN -->
     <div id="screen-pin" class="screen active">
-        <h1 style="color: #FF0055; font-size: 22px;">CHAOS PARTY</h1>
-        <p style="font-size: 13px; color: #aaa;">Inserisci il PIN della stanza:</p>
+        <img src="TitleLogo.png" alt="Chaos Party" class="game-logo" onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
+        <h1 id="fallback-title" style="color: #ff0055; font-size: 26px; display:none; margin-bottom:10px;">CHAOS PARTY</h1>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Inserisci il PIN della stanza:</p>
         <input type="number" id="pinInput" placeholder="----" maxlength="4">
         <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
     </div>
 
-    <!-- Schermata 2: Profilo -->
+    <!-- Schermata 2: Profilo e Avatar Circolare -->
     <div id="screen-profile" class="screen">
-        <h1 style="color: #00FF66; font-size: 20px;">IL TUO PROFILO</h1>
-        <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+        <h1 style="color: #00ff66; font-size: 22px; margin-top:0;">IL TUO PROFILO</h1>
+        <div class="avatar-container">
+            <img id="avatarPreview" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaa'><path d='M12 2C7.58 2 4 5.58 4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9c0-4.42-3.58-8-8-8zm0 2c3.31 0 6 2.69 6 6v7H6v-7c0-3.31 2.69-6 6-6zm-3 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>">
+        </div>
         <input type="text" id="nicknameInput" placeholder="Il tuo Nickname" maxlength="12">
-        <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" style="margin-bottom: 15px; color: #aaa; width: 100%;">
+        <div class="file-input-wrapper">
+            <input type="file" id="fileInput" accept="image/*" onchange="previewFile()">
+        </div>
         <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
     <!-- Schermata 3: Lobby -->
     <div id="screen-lobby" class="screen">
-        <h2 style="font-size: 16px; color: #00FF66;">SEI DENTRO!</h2>
-        <p style="font-size: 13px; color: #aaa;">Tutti pronti per iniziare?</p>
+        <h2 style="font-size: 20px; color: #00ff66;">SEI DENTRO!</h2>
+        <p style="font-size: 14px; color: #aaa; margin: 20px 0;">Tutti pronti per iniziare?</p>
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
     <!-- Schermata 4: Squadra e Nome Squadra -->
     <div id="screen-team" class="screen">
-        <h1 id="teamTitle" style="font-size: 22px; color: #FF0055;">SQUADRA</h1>
+        <h1 id="teamTitle" style="font-size: 22px; color: #ff0055;">SQUADRA</h1>
         <p id="teamSubtitle" style="font-size: 14px; color: #aaa;">In attesa del nome squadra...</p>
         <div id="captainSection" style="display:none; margin-top: 15px;">
-            <p style="font-size: 12px; color: #00FF66;">Sei il Capitano! Scegli il nome:</p>
+            <p style="font-size: 12px; color: #00ff66;">Sei il Capitano! Scegli il nome:</p>
             <input type="text" id="teamNameInput" placeholder="Nome Squadra" maxlength="15">
             <button class="btn" onclick="submitTeamName()">CONFERMA NOME</button>
         </div>
@@ -53,24 +172,24 @@
 
     <!-- Schermata 5: Roulette Minigioco -->
     <div id="screen-roulette" class="screen">
-        <h1 style="color: #FF0055; font-size: 20px;">ROULETTE</h1>
-        <p style="font-size: 14px; color: #00FF66; margin-top: 20px;">Estrazione minigioco in corso...</p>
+        <h1 style="color: #ff0055; font-size: 22px;">ROULETTE</h1>
+        <p style="font-size: 14px; color: #00ff66; margin-top: 20px;">Estrazione minigioco in corso...</p>
     </div>
 
     <!-- Schermata 6: Tutorial con Tasto Pronto -->
     <div id="screen-tutorial" class="screen">
-        <h1 style="color: #00FF66; font-size: 20px;">TAGLIABOSCHI</h1>
-        <p style="font-size: 13px; color: #aaa; margin: 10px 0;">Scuota il telefono per tagliare il tronco!</p>
+        <h1 style="color: #00ff66; font-size: 22px;">TAGLIABOSCHI</h1>
+        <p style="font-size: 14px; color: #aaa; margin: 15px 0;">Scuota il telefono per tagliare il tronco!</p>
         <button id="minigameReadyBtn" class="btn" onclick="setMinigameReady()">SONO PRONTO!</button>
-        <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;">Premi pronto per attivare i sensori.</p>
+        <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 15px;">Premi pronto per attivare i sensori.</p>
     </div>
 
     <!-- Schermata 7: Minigioco in Corso -->
     <div id="screen-minigame" class="screen">
-        <h1 style="color: #FF0055; font-size: 20px;">TAGLIA IL TRONCO!</h1>
+        <h1 style="color: #ff0055; font-size: 22px;">TAGLIA IL TRONCO!</h1>
         <p style="font-size: 13px; color: #aaa; margin-bottom: 15px;">Daje con gli scossoni!</p>
-        <div id="scoreDisplay" style="font-size: 45px; color: #00FF66; font-weight: bold;">0</div>
-        <p style="font-size: 11px; color: #777; margin-top: 10px;">COLPI</p>
+        <div id="scoreDisplay" style="font-size: 55px; color: #00ff66; font-weight: bold; text-shadow: 0 0 10px rgba(0,255,102,0.5);">0</div>
+        <p style="font-size: 12px; color: #777; margin-top: 10px; letter-spacing: 2px;">COLPI</p>
     </div>
 
     <script>
@@ -131,14 +250,20 @@
                 var img = new Image();
                 img.onload = function () {
                     var canvas = document.createElement('canvas');
-                    var MAX_SIZE = 60;
+                    var MAX_SIZE = 120; // Aumentato leggermente per renderlo più nitido nello stile 1-2-Switch
                     var width = img.width, height = img.height;
-                    if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
-                    else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
-                    canvas.width = width; canvas.height = height;
+                    
+                    // Taglio automatico centrato quadrato (Stile Everybody 1-2-Switch)
+                    var minEdge = Math.min(width, height);
+                    var startX = (width - minEdge) / 2;
+                    var startY = (height - minEdge) / 2;
+
+                    canvas.width = MAX_SIZE; 
+                    canvas.height = MAX_SIZE;
                     var ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    avatarBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                    ctx.drawImage(img, startX, startY, minEdge, minEdge, 0, 0, MAX_SIZE, MAX_SIZE);
+                    
+                    avatarBase64 = canvas.toDataURL('image/jpeg', 0.7);
                     document.getElementById('avatarPreview').src = avatarBase64;
                 }
                 img.src = e.target.result;
@@ -191,7 +316,8 @@
             isReady = !isReady;
             var btn = document.getElementById('readyBtn');
             btn.innerText = isReady ? 'ANNULLA' : 'SONO PRONTO!';
-            btn.style.backgroundColor = isReady ? '#FF0055' : '#00FF66';
+            btn.style.backgroundColor = isReady ? '#ff0055' : '#00ff66';
+            btn.style.boxShadow = isReady ? '0 5px 0 #990033' : '0 5px 0 #00993d';
 
             fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
@@ -215,7 +341,7 @@
             .then(data => {
                 if(data.code === 200) {
                     document.getElementById('teamTitle').innerText = teamName.toUpperCase();
-                    document.getElementById('captainSection').innerHTML = "<p style='color:#00FF66; font-size:14px;'>Nome registrato! In attesa dell'altra squadra...</p>";
+                    document.getElementById('captainSection').innerHTML = "<p style='color:#00ff66; font-size:14px;'>Nome registrato! In attesa dell'altra squadra...</p>";
                 } else {
                     alert('Errore salvataggio nome');
                 }
@@ -227,6 +353,7 @@
             var btn = document.getElementById('minigameReadyBtn');
             btn.innerText = "ATTESA ALTRI...";
             btn.style.backgroundColor = "#555";
+            btn.style.boxShadow = "0 5px 0 #222";
             btn.disabled = true;
 
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -234,13 +361,13 @@
                     if (response === 'granted') {
                         window.addEventListener('devicemotion', handleMotion);
                         document.getElementById('sensorStatus').innerText = "Sensori attivi!";
-                        document.getElementById('sensorStatus').style.color = "#00FF66";
+                        document.getElementById('sensorStatus').style.color = "#00ff66";
                     }
                 }).catch(console.error);
             } else {
                 window.addEventListener('devicemotion', handleMotion);
                 document.getElementById('sensorStatus').innerText = "Sensori attivi!";
-                document.getElementById('sensorStatus').style.color = "#00FF66";
+                document.getElementById('sensorStatus').style.color = "#00ff66";
             }
 
             var nickname = document.getElementById('nicknameInput').value.trim();
@@ -264,7 +391,6 @@
             .then(data => {
                 if (data.code === 200 && data.data.Data) {
                     
-                    // 1. Controlla lo stato globale della TV (Comanda TUTTO)
                     if (data.data.Data["GlobalState"]) {
                         var newState = data.data.Data["GlobalState"].Value;
                         if (newState !== currentGameState) {
@@ -273,7 +399,6 @@
                         }
                     }
 
-                    // 2. Prendi il colore della squadra del giocatore
                     if (data.data.Data[playFabId]) {
                         var profile = JSON.parse(data.data.Data[playFabId].Value);
                         if (profile.team && profile.team !== "") {
@@ -281,9 +406,8 @@
                         }
                     }
 
-                    // 3. Aggiorna il titolo della squadra se il nome personalizzato è stato scritto
                     if (myTeamColor) {
-                        var keyName = "TeamName_" + myTeamColor;
+                        var keyName = "TeamName_" + myTeamColor; 
                         if (data.data.Data[keyName]) {
                             var customName = data.data.Data[keyName].Value;
                             document.getElementById('teamTitle').innerText = customName.toUpperCase();
@@ -293,7 +417,6 @@
                             document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + myTeamColor;
                         }
 
-                        // Mostra i comandi al capitano
                         if (data.data.Data[playFabId]) {
                             var profile = JSON.parse(data.data.Data[playFabId].Value);
                             if (profile.isCaptain) {
@@ -305,7 +428,6 @@
             });
         }
 
-        // Gestione centralizzata delle schermate basata SOLO su GlobalState
         function handleStateChange(state) {
             var screens = document.querySelectorAll('.screen');
             screens.forEach(s => s.classList.remove('active'));
