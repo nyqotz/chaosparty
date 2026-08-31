@@ -156,7 +156,6 @@
 </head>
 <body>
 
-    <!-- Schermata 1: Inserimento PIN -->
     <div id="screen-pin" class="screen active">
         <img src="TitleLogo.png" alt="Chaos Party" class="game-logo" onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
         <h1 id="fallback-title" style="color: #ff0055; font-size: 24px; display:none; margin-bottom:10px;">CHAOS PARTY</h1>
@@ -166,7 +165,6 @@
         <button id="btnAvanti" class="btn" onclick="joinRoom()">AVANTI</button>
     </div>
 
-    <!-- Schermata di Ritaglio (Crop) Quadrato -->
     <div id="screen-crop" class="screen">
         <h1 style="color: #00ff66; font-size: 18px; margin-top:0;">RITAGLIA FOTO</h1>
         <p class="crop-instructions">Trascina per centrare l'immagine</p>
@@ -179,7 +177,6 @@
         <button class="btn" onclick="confirmCrop()">CONFERMA RITAGLIO</button>
     </div>
 
-    <!-- Schermata 2: Profilo -->
     <div id="screen-profile" class="screen">
         <h1 style="color: #00ff66; font-size: 20px; margin-top:0;">IL TUO PROFILO</h1>
         
@@ -196,31 +193,29 @@
         <button id="enterBtn" class="btn" onclick="saveProfile()">ENTRA IN PARTITA</button>
     </div>
 
-    <!-- Schermata 3: Lobby -->
     <div id="screen-lobby" class="screen">
         <h2 style="font-size: 18px; color: #00ff66;">SEI DENTRO!</h2>
         <p style="font-size: 13px; color: #aaa; margin: 15px 0;">Tutti pronti per iniziare?</p>
         <button id="readyBtn" class="btn" onclick="toggleReady()">SONO PRONTO!</button>
     </div>
 
-    <!-- Schermata 4: Squadra e Nome Squadra -->
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 20px; color: #ff0055;">SQUADRA</h1>
         <p id="teamSubtitle" style="font-size: 13px; color: #aaa;">In attesa del nome squadra...</p>
         <div id="captainSection" style="display:none; margin-top: 12px;">
             <p style="font-size: 11px; color: #00ff66;">Sei il Capitano! Scegli il nome:</p>
-            <input type="text" id="teamNameInput" placeholder="Nome Squadra" maxlength="15">
-            <button class="btn" onclick="submitTeamName()">CONFERMA NOME</button>
+            <form onsubmit="event.preventDefault(); submitTeamName();">
+                <input type="text" id="teamNameInput" placeholder="Nome Squadra" maxlength="15">
+                <button type="submit" class="btn">CONFERMA NOME</button>
+            </form>
         </div>
     </div>
 
-    <!-- Schermata 5: Roulette Minigioco -->
     <div id="screen-roulette" class="screen">
         <h1 style="color: #ff0055; font-size: 20px;">ROULETTE</h1>
         <p style="font-size: 13px; color: #00ff66; margin-top: 15px;">Estrazione minigioco in corso...</p>
     </div>
 
-    <!-- Schermata 6: Tutorial con Tasto Pronto -->
     <div id="screen-tutorial" class="screen">
         <h1 style="color: #00ff66; font-size: 20px;">TAGLIABOSCHI</h1>
         <p style="font-size: 13px; color: #aaa; margin: 12px 0;">Scuota il telefono per tagliare il tronco!</p>
@@ -228,7 +223,6 @@
         <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;">Premi pronto per attivare i sensori.</p>
     </div>
 
-    <!-- Schermata 7: Minigioco in Corso -->
     <div id="screen-minigame" class="screen">
         <h1 style="color: #ff0055; font-size: 20px;">TAGLIA IL TRONCO!</h1>
         <p style="font-size: 12px; color: #aaa; margin-bottom: 10px;">Daje con gli scossoni!</p>
@@ -248,6 +242,7 @@
         var heartbeatInterval = null;
         var myTeamColor = "";
         var currentGameState = "LOBBY";
+        var isCaptain = false;
         
         var localShakes = 0;
         var lastShakeTime = 0;
@@ -273,7 +268,6 @@
 
             setupCropListeners();
 
-            // --- RIPRISTINO AUTOMATICO BLINDATO ---
             let savedRoom = localStorage.getItem('cp_room');
             let savedNick = localStorage.getItem('cp_nick');
             let savedAvatar = localStorage.getItem('cp_avatar');
@@ -355,7 +349,6 @@
                 }
             })
             .catch(err => {
-                console.error(err);
                 alert('Impossibile connettersi a PlayFab. Riprova.');
                 btn.innerText = "AVANTI";
             });
@@ -401,16 +394,11 @@
 
         function setupCropListeners() {
             let container = document.getElementById('cropContainer');
-
-            function getClientPos(e) {
-                return e.touches ? e.touches[0] : e;
-            }
-
+            function getClientPos(e) { return e.touches ? e.touches[0] : e; }
             container.addEventListener('mousedown', (e) => { startDrag(getClientPos(e)); });
             container.addEventListener('mousemove', (e) => { onDrag(getClientPos(e)); });
             container.addEventListener('mouseup', endDrag);
             container.addEventListener('mouseleave', endDrag);
-
             container.addEventListener('touchstart', (e) => { startDrag(getClientPos(e)); }, {passive: true});
             container.addEventListener('touchmove', (e) => { onDrag(getClientPos(e)); }, {passive: true});
             container.addEventListener('touchend', endDrag);
@@ -433,28 +421,23 @@
             drawCanvas();
         }
 
-        function endDrag() {
-            isDragging = false;
-        }
+        function endDrag() { isDragging = false; }
 
         function adjustZoom(val) {
             let oldScale = imgScale;
             imgScale = parseFloat(val);
-            
             let center = renderSize / 2;
             imgX = center - (center - imgX) * (imgScale / oldScale);
             imgY = center - (center - imgY) * (imgScale / oldScale);
-
             drawCanvas();
         }
 
         function confirmCrop() {
             let finalCanvas = document.createElement('canvas');
-            let finalSize = 60; // Risoluzione ultra-leggera per rientrare nei limiti CloudScript
+            let finalSize = 60; 
             finalCanvas.width = finalSize;
             finalCanvas.height = finalSize;
             let finalCtx = finalCanvas.getContext('2d');
-
             finalCtx.drawImage(canvas, 0, 0, renderSize, renderSize, 0, 0, finalSize, finalSize);
 
             avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.5);
@@ -480,11 +463,7 @@
                 headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                 body: JSON.stringify({ 
                     FunctionName: "JoinRoom", 
-                    FunctionParameter: { 
-                        roomId: roomCode, 
-                        nickname: nickname, 
-                        avatar: avatarBase64 
-                    } 
+                    FunctionParameter: { roomId: roomCode, nickname: nickname, avatar: avatarBase64 } 
                 })
             })
             .then(res => res.json())
@@ -509,11 +488,13 @@
             heartbeatInterval = setInterval(function() {
                 if (!roomCode || !playFabId) return;
                 var nickname = document.getElementById('nicknameInput').value.trim();
+                
                 var profileData = JSON.stringify({
                     nickname: nickname, avatar: avatarBase64, ready: isReady,
-                    team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
+                    team: myTeamColor, isCaptain: isCaptain, ping: Date.now(), score: localShakes,
                     minigameReady: isMinigameReady
                 });
+                
                 fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                     body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
@@ -523,7 +504,6 @@
 
         function toggleReady() {
             if (currentGameState !== "LOBBY") return;
-
             isReady = !isReady;
             var btn = document.getElementById('readyBtn');
             btn.innerText = isReady ? 'ANNULLA' : 'SONO PRONTO!';
@@ -537,25 +517,21 @@
         }
 
         function submitTeamName() {
-            var teamName = document.getElementById('teamNameInput').value.trim();
+            var input = document.getElementById('teamNameInput');
+            if(!input) return;
+            
+            var teamName = input.value.trim();
             if(!teamName) { alert('Inserisci un nome per la squadra!'); return; }
 
             var teamKey = "TeamName_" + myTeamColor; 
             var dataObj = {};
             dataObj[teamKey] = teamName;
 
+            document.getElementById('captainSection').innerHTML = "<p style='color:#00ff66; font-size:14px;'>Nome registrato! In attesa dell'altra squadra...</p>";
+
             fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
                 body: JSON.stringify({ SharedGroupId: roomCode, Data: dataObj })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.code === 200) {
-                    document.getElementById('teamTitle').innerText = teamName.toUpperCase();
-                    document.getElementById('captainSection').innerHTML = "<p style='color:#00ff66; font-size:14px;'>Nome registrato! In attesa dell'altra squadra...</p>";
-                } else {
-                    alert('Errore salvataggio nome');
-                }
             }).catch(() => {});
         }
 
@@ -584,7 +560,7 @@
             var nickname = document.getElementById('nicknameInput').value.trim();
             var profileData = JSON.stringify({
                 nickname: nickname, avatar: avatarBase64, ready: isReady,
-                team: myTeamColor, isCaptain: false, ping: Date.now(), score: localShakes,
+                team: myTeamColor, isCaptain: isCaptain, ping: Date.now(), score: localShakes,
                 minigameReady: true
             });
             fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
@@ -615,6 +591,7 @@
                         if (profile.team && profile.team !== "") {
                             myTeamColor = profile.team;
                         }
+                        isCaptain = profile.isCaptain || false;
                     }
 
                     if (myTeamColor) {
@@ -628,11 +605,8 @@
                             document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + myTeamColor;
                         }
 
-                        if (data.data.Data[playFabId]) {
-                            var profile = JSON.parse(data.data.Data[playFabId].Value);
-                            if (profile.isCaptain) {
-                                document.getElementById('captainSection').style.display = 'block';
-                            }
+                        if (isCaptain && !document.getElementById('captainSection').innerHTML.includes("Nome registrato")) {
+                            document.getElementById('captainSection').style.display = 'block';
                         }
                     }
                 }
@@ -643,16 +617,23 @@
             var screens = document.querySelectorAll('.screen');
             screens.forEach(s => s.classList.remove('active'));
 
+            // SICUREZZA ANTI-SCHERMO BIANCO/VUOTO
+            let targetScreen = document.getElementById('screen-team'); // Fallback di sicurezza
+            
             if (state === "LOBBY") {
-                document.getElementById('screen-lobby').classList.add('active');
+                targetScreen = document.getElementById('screen-lobby');
             } else if (state === "TEAM_SELECTION" || state === "TEAM_NAMING") {
-                document.getElementById('screen-team').classList.add('active');
+                targetScreen = document.getElementById('screen-team');
             } else if (state === "ROULETTE") {
-                document.getElementById('screen-roulette').classList.add('active');
+                targetScreen = document.getElementById('screen-roulette');
             } else if (state === "TUTORIAL") {
-                document.getElementById('screen-tutorial').classList.add('active');
+                targetScreen = document.getElementById('screen-tutorial');
             } else if (state === "PLAYING") {
-                document.getElementById('screen-minigame').classList.add('active');
+                targetScreen = document.getElementById('screen-minigame');
+            }
+
+            if (targetScreen) {
+                targetScreen.classList.add('active');
             }
         }
 
