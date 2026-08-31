@@ -201,7 +201,7 @@
 
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 20px; color: #ff0055;">SQUADRA</h1>
-        <p id="teamSubtitle" style="font-size: 13px; color: #aaa;">In attesa del nome squadra...</p>
+        <!-- Riga del sottotitolo rimossa -->
         <div id="captainSection" style="display:none; margin-top: 12px;">
             <p style="font-size: 11px; color: #00ff66;">Sei il Capitano! Scegli il nome:</p>
             <form onsubmit="event.preventDefault(); submitTeamName();">
@@ -599,10 +599,8 @@
                         if (data.data.Data[keyName]) {
                             var customName = data.data.Data[keyName].Value;
                             document.getElementById('teamTitle').innerText = customName.toUpperCase();
-                            document.getElementById('teamSubtitle').innerText = "Squadra " + myTeamColor;
                         } else {
                             document.getElementById('teamTitle').innerText = "SQUADRA " + myTeamColor.toUpperCase();
-                            document.getElementById('teamSubtitle').innerText = "Sei nella squadra " + myTeamColor;
                         }
 
                         if (isCaptain && !document.getElementById('captainSection').innerHTML.includes("Nome registrato")) {
@@ -617,8 +615,7 @@
             var screens = document.querySelectorAll('.screen');
             screens.forEach(s => s.classList.remove('active'));
 
-            // SICUREZZA ANTI-SCHERMO BIANCO/VUOTO
-            let targetScreen = document.getElementById('screen-team'); // Fallback di sicurezza
+            let targetScreen = document.getElementById('screen-team');
             
             if (state === "LOBBY") {
                 targetScreen = document.getElementById('screen-lobby');
