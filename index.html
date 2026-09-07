@@ -158,7 +158,7 @@
             letter-spacing: 1px;
         }
 
-        /* --- STILI AGGIUNTIVI PER WORDS FIGHT --- */
+        /* --- STILI WORDS FIGHT --- */
         .wf-griglia-voti {
             display: flex;
             flex-direction: column;
@@ -549,7 +549,6 @@
             heartbeatInterval = setInterval(sendPlayerDataToPlayFab, 5000);
         }
 
-        // Centralizzata per inviare tutti i dati aggiornati a PlayFab
         function sendPlayerDataToPlayFab() {
             if (!roomCode || !playFabId) return;
             var nickname = document.getElementById('nicknameInput').value.trim();
@@ -647,12 +646,19 @@
                         document.getElementById('tutorialTitle').innerText = chosenGame.toUpperCase();
                     }
                     
-                    // Ricezione nomi categorie Words Fight per popolare i bottoni
+                    // Lettura categorie Words Fight
                     if (data.data.Data["WfCategories"]) {
-                        var catList = JSON.parse(data.data.Data["WfCategories"].Value);
-                        for(let i=0; i<6; i++) {
-                            let btn = document.getElementById('wf-cat-' + i);
-                            if(catList[i] && btn) btn.innerText = catList[i].toUpperCase();
+                        try {
+                            var wrapper = JSON.parse(data.data.Data["WfCategories"].Value);
+                            var catList = wrapper.list || wrapper;
+                            for (let i = 0; i < 6; i++) {
+                                let btn = document.getElementById('wf-cat-' + i);
+                                if (catList[i] && btn) {
+                                    btn.innerText = catList[i].toUpperCase();
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Errore parsing categorie WF:", e);
                         }
                     }
                     
@@ -701,7 +707,6 @@
             } else if (state === "TUTORIAL") {
                 targetScreen = document.getElementById('screen-tutorial');
                 
-                // Resetta UI Words Fight se torniamo al tutorial
                 wfCurrentVote = -1;
                 wfLastWord = "";
                 document.querySelectorAll('.wf-btn-categoria').forEach(b => {
@@ -771,13 +776,11 @@
         function inviaVotoWF(indice) {
             wfCurrentVote = indice;
             
-            // UI Update
             let bottoni = document.querySelectorAll('.wf-btn-categoria');
             bottoni.forEach(b => b.disabled = true);
             document.getElementById('wf-cat-' + indice).classList.add('selezionato');
             document.getElementById('wf-attesa-voto').style.display = 'block';
 
-            // Invia dati immediatamente
             sendPlayerDataToPlayFab();
             if (navigator.vibrate) { navigator.vibrate(20); }
         }
