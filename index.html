@@ -148,9 +148,42 @@
             margin-bottom: 10px;
         }
 
+        #scoreContainer {
+            transition: opacity 1s ease-in-out;
+            opacity: 1;
+        }
+
         h1, h2 {
             text-shadow: 2px 2px 0px #000;
             letter-spacing: 1px;
+        }
+
+        /* --- STILI AGGIUNTIVI PER WORDS FIGHT --- */
+        .wf-griglia-voti {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .wf-btn-categoria {
+            background-color: #0f0f15;
+            border: 2px solid #00ff66;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .wf-btn-categoria.selezionato {
+            background-color: #ff0055;
+            border-color: #ff0055;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+            color: white;
         }
     </style>
 </head>
@@ -201,7 +234,6 @@
 
     <div id="screen-team" class="screen">
         <h1 id="teamTitle" style="font-size: 20px; color: #ff0055;">SQUADRA</h1>
-        <!-- Riga del sottotitolo rimossa -->
         <div id="captainSection" style="display:none; margin-top: 12px;">
             <p style="font-size: 11px; color: #00ff66;">Sei il Capitano! Scegli il nome:</p>
             <form onsubmit="event.preventDefault(); submitTeamName();">
@@ -217,8 +249,8 @@
     </div>
 
     <div id="screen-tutorial" class="screen">
-        <h1 style="color: #00ff66; font-size: 20px;">TAGLIABOSCHI</h1>
-        <p style="font-size: 13px; color: #aaa; margin: 12px 0;">Scuota il telefono per tagliare il tronco!</p>
+        <h1 id="tutorialTitle" style="color: #00ff66; font-size: 20px;">MINIGIOCO</h1>
+        <p style="font-size: 13px; color: #aaa; margin: 12px 0;">Segui le istruzioni sullo schermo!</p>
         <button id="minigameReadyBtn" class="btn" onclick="setMinigameReady()">SONO PRONTO!</button>
         <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;">Premi pronto per attivare i sensori.</p>
     </div>
@@ -226,8 +258,32 @@
     <div id="screen-minigame" class="screen">
         <h1 style="color: #ff0055; font-size: 20px;">TAGLIA IL TRONCO!</h1>
         <p style="font-size: 12px; color: #aaa; margin-bottom: 10px;">Daje con gli scossoni!</p>
-        <div id="scoreDisplay" style="font-size: 45px; color: #00ff66; font-weight: bold; text-shadow: 0 0 10px rgba(0,255,102,0.5);">0</div>
-        <p style="font-size: 11px; color: #777; margin-top: 8px; letter-spacing: 2px;">COLPI</p>
+        
+        <div id="scoreContainer">
+            <div id="scoreDisplay" style="font-size: 45px; color: #00ff66; font-weight: bold; text-shadow: 0 0 10px rgba(0,255,102,0.5);">0</div>
+            <p style="font-size: 11px; color: #777; margin-top: 8px; letter-spacing: 2px;">COLPI</p>
+        </div>
+    </div>
+
+    <!-- SCHERMATE WORDS FIGHT -->
+    <div id="screen-wf-vote" class="screen">
+        <h2 style="color: #ff0055; font-size: 20px; margin-top:0;">SCEGLI CATEGORIA</h2>
+        <div class="wf-griglia-voti">
+            <button class="wf-btn-categoria" id="wf-cat-0" onclick="inviaVotoWF(0)">Categoria 1</button>
+            <button class="wf-btn-categoria" id="wf-cat-1" onclick="inviaVotoWF(1)">Categoria 2</button>
+            <button class="wf-btn-categoria" id="wf-cat-2" onclick="inviaVotoWF(2)">Categoria 3</button>
+            <button class="wf-btn-categoria" id="wf-cat-3" onclick="inviaVotoWF(3)">Categoria 4</button>
+            <button class="wf-btn-categoria" id="wf-cat-4" onclick="inviaVotoWF(4)">Categoria 5</button>
+            <button class="wf-btn-categoria" id="wf-cat-5" onclick="inviaVotoWF(5)">Categoria 6</button>
+        </div>
+        <p id="wf-attesa-voto" style="display:none; color: #00ff66; font-size: 12px; margin-top: 15px;">Voto registrato! Attendi...</p>
+    </div>
+
+    <div id="screen-wf-arena" class="screen">
+        <h2 id="wf-titolo-categoria" style="color: #00ff66; font-size: 18px;">Categoria</h2>
+        <p style="font-size: 11px; color: #aaa; margin-bottom: 15px;">Scrivi la parola più velocemente che puoi!</p>
+        <input type="text" id="wf-campo-parola" placeholder="Digitazione..." autocomplete="off">
+        <button class="btn" onclick="inviaParolaWF()" style="background-color: #ff0055; box-shadow: 0 5px 0 #990033; color: white;">INVIA PAROLA</button>
     </div>
 
     <script>
@@ -246,6 +302,11 @@
         
         var localShakes = 0;
         var lastShakeTime = 0;
+        var gameTimerInterval = null;
+
+        // Variabili Words Fight
+        var wfCurrentVote = -1;
+        var wfLastWord = "";
 
         let cropImage = new Image();
         let canvas, ctx;
@@ -485,21 +546,25 @@
         }
 
         function startHeartbeat() {
-            heartbeatInterval = setInterval(function() {
-                if (!roomCode || !playFabId) return;
-                var nickname = document.getElementById('nicknameInput').value.trim();
-                
-                var profileData = JSON.stringify({
-                    nickname: nickname, avatar: avatarBase64, ready: isReady,
-                    team: myTeamColor, isCaptain: isCaptain, ping: Date.now(), score: localShakes,
-                    minigameReady: isMinigameReady
-                });
-                
-                fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                    body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
-                }).catch(() => {});
-            }, 5000);
+            heartbeatInterval = setInterval(sendPlayerDataToPlayFab, 5000);
+        }
+
+        // Centralizzata per inviare tutti i dati aggiornati a PlayFab
+        function sendPlayerDataToPlayFab() {
+            if (!roomCode || !playFabId) return;
+            var nickname = document.getElementById('nicknameInput').value.trim();
+            
+            var profileData = JSON.stringify({
+                nickname: nickname, avatar: avatarBase64, ready: isReady,
+                team: myTeamColor, isCaptain: isCaptain, ping: Date.now(), 
+                score: localShakes, minigameReady: isMinigameReady,
+                wfVote: wfCurrentVote, wfLastWord: wfLastWord
+            });
+            
+            fetch("https://" + titleId + ".playfabapi.com/Client/UpdateSharedGroupData", {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
+                body: JSON.stringify({ SharedGroupId: roomCode, Data: { [playFabId]: profileData } })
+            }).catch(() => {});
         }
 
         function toggleReady() {
@@ -557,16 +622,7 @@
                 document.getElementById('sensorStatus').style.color = "#00ff66";
             }
 
-            var nickname = document.getElementById('nicknameInput').value.trim();
-            var profileData = JSON.stringify({
-                nickname: nickname, avatar: avatarBase64, ready: isReady,
-                team: myTeamColor, isCaptain: isCaptain, ping: Date.now(), score: localShakes,
-                minigameReady: true
-            });
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ FunctionName: "UpdatePlayerProfile", FunctionParameter: { roomId: roomCode, playerId: playFabId, profileJson: profileData } })
-            }).catch(() => {});
+            sendPlayerDataToPlayFab();
         }
 
         function checkGameLoop() {
@@ -586,6 +642,25 @@
                         }
                     }
 
+                    if (data.data.Data["SelectedGame"]) {
+                        var chosenGame = data.data.Data["SelectedGame"].Value;
+                        document.getElementById('tutorialTitle').innerText = chosenGame.toUpperCase();
+                    }
+                    
+                    // Ricezione nomi categorie Words Fight per popolare i bottoni
+                    if (data.data.Data["WfCategories"]) {
+                        var catList = JSON.parse(data.data.Data["WfCategories"].Value);
+                        for(let i=0; i<6; i++) {
+                            let btn = document.getElementById('wf-cat-' + i);
+                            if(catList[i] && btn) btn.innerText = catList[i].toUpperCase();
+                        }
+                    }
+                    
+                    // Categoria vincente Words Fight
+                    if (data.data.Data["WfWinningCategory"]) {
+                        document.getElementById('wf-titolo-categoria').innerText = data.data.Data["WfWinningCategory"].Value.toUpperCase();
+                    }
+
                     if (data.data.Data[playFabId]) {
                         var profile = JSON.parse(data.data.Data[playFabId].Value);
                         if (profile.team && profile.team !== "") {
@@ -603,7 +678,7 @@
                             document.getElementById('teamTitle').innerText = "SQUADRA " + myTeamColor.toUpperCase();
                         }
 
-                        if (isCaptain && !document.getElementById('captainSection').innerHTML.includes("Nome registrato")) {
+                        if (isCaptain && document.getElementById('captainSection') && !document.getElementById('captainSection').innerHTML.includes("Nome registrato")) {
                             document.getElementById('captainSection').style.display = 'block';
                         }
                     }
@@ -615,7 +690,7 @@
             var screens = document.querySelectorAll('.screen');
             screens.forEach(s => s.classList.remove('active'));
 
-            let targetScreen = document.getElementById('screen-team');
+            let targetScreen = null;
             
             if (state === "LOBBY") {
                 targetScreen = document.getElementById('screen-lobby');
@@ -625,13 +700,50 @@
                 targetScreen = document.getElementById('screen-roulette');
             } else if (state === "TUTORIAL") {
                 targetScreen = document.getElementById('screen-tutorial');
+                
+                // Resetta UI Words Fight se torniamo al tutorial
+                wfCurrentVote = -1;
+                wfLastWord = "";
+                document.querySelectorAll('.wf-btn-categoria').forEach(b => {
+                    b.classList.remove('selezionato');
+                    b.disabled = false;
+                });
+                document.getElementById('wf-attesa-voto').style.display = "none";
+                
             } else if (state === "PLAYING") {
                 targetScreen = document.getElementById('screen-minigame');
+                
+                localShakes = 0;
+                document.getElementById('scoreDisplay').innerText = "0";
+                var sc = document.getElementById('scoreContainer');
+                sc.style.opacity = "1";
+                sc.style.pointerEvents = "auto";
+                startMinigameTimer();
+                
+            } else if (state === "WORDS_FIGHT_VOTE") {
+                targetScreen = document.getElementById('screen-wf-vote');
+            } else if (state === "WORDS_FIGHT_ARENA") {
+                targetScreen = document.getElementById('screen-wf-arena');
+                document.getElementById('wf-campo-parola').value = "";
             }
 
             if (targetScreen) {
                 targetScreen.classList.add('active');
             }
+        }
+
+        function startMinigameTimer() {
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            let timeLeft = 30; 
+
+            gameTimerInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft === 10) {
+                    var sc = document.getElementById('scoreContainer');
+                    sc.style.opacity = "0"; 
+                }
+                if (timeLeft <= 0) clearInterval(gameTimerInterval);
+            }, 1000);
         }
 
         function handleMotion(e) {
@@ -640,16 +752,47 @@
             if (!acc) return;
 
             var currentTime = Date.now();
-            if (currentTime - lastShakeTime > 120) {
-                var threshold = 18;
+            if (currentTime - lastShakeTime > 100) {
+                var threshold = 15;
                 var movement = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
 
                 if (movement > threshold) {
                     localShakes++;
                     lastShakeTime = currentTime;
                     document.getElementById('scoreDisplay').innerText = localShakes;
-                    if (navigator.vibrate) { navigator.vibrate(40); }
+                    if (navigator.vibrate) { navigator.vibrate(35); }
+
+                    sendPlayerDataToPlayFab();
                 }
+            }
+        }
+
+        // --- METODI PER WORDS FIGHT ---
+        function inviaVotoWF(indice) {
+            wfCurrentVote = indice;
+            
+            // UI Update
+            let bottoni = document.querySelectorAll('.wf-btn-categoria');
+            bottoni.forEach(b => b.disabled = true);
+            document.getElementById('wf-cat-' + indice).classList.add('selezionato');
+            document.getElementById('wf-attesa-voto').style.display = 'block';
+
+            // Invia dati immediatamente
+            sendPlayerDataToPlayFab();
+            if (navigator.vibrate) { navigator.vibrate(20); }
+        }
+
+        function inviaParolaWF() {
+            const input = document.getElementById('wf-campo-parola');
+            const parola = input.value.trim();
+
+            if (parola !== "") {
+                wfLastWord = parola;
+                sendPlayerDataToPlayFab();
+                
+                input.value = ""; 
+                input.focus(); 
+                if (navigator.vibrate) { navigator.vibrate(20); }
             }
         }
     </script>
