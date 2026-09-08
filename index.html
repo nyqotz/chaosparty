@@ -250,9 +250,9 @@
 
     <div id="screen-tutorial" class="screen">
         <h1 id="tutorialTitle" style="color: #00ff66; font-size: 20px;">MINIGIOCO</h1>
-        <p style="font-size: 13px; color: #aaa; margin: 12px 0;">Segui le istruzioni sullo schermo!</p>
+        <p id="tutorialDesc" style="font-size: 13px; color: #aaa; margin: 12px 0;">Segui le istruzioni sullo schermo!</p>
         <button id="minigameReadyBtn" class="btn" onclick="setMinigameReady()">SONO PRONTO!</button>
-        <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;">Premi pronto per attivare i sensori.</p>
+        <p id="sensorStatus" style="font-size: 11px; color: #aaa; margin-top: 10px;"></p>
     </div>
 
     <div id="screen-minigame" class="screen">
@@ -286,6 +286,13 @@
         <button class="btn" onclick="inviaParolaWF()" style="background-color: #ff0055; box-shadow: 0 5px 0 #990033; color: white;">INVIA PAROLA</button>
     </div>
 
+    <div id="screen-wf-score" class="screen">
+        <h2 style="color: #00ff66; font-size: 20px; margin-top:0;">FINE ROUND!</h2>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 10px;">Parole indovinate:</p>
+        <div id="wf-final-score" style="font-size: 45px; color: #ff0055; font-weight: bold; text-shadow: 0 0 10px rgba(255,0,85,0.5);">0</div>
+        <p style="font-size: 11px; color: #777; margin-top: 15px;">In attesa del prossimo round...</p>
+    </div>
+
     <script>
         var titleId = "71EAC";
         var roomCode = '';
@@ -304,9 +311,9 @@
         var lastShakeTime = 0;
         var gameTimerInterval = null;
 
-        // Variabili Words Fight
         var wfCurrentVote = -1;
         var wfLastWord = "";
+        var wfLocalScore = 0;
 
         let cropImage = new Image();
         let canvas, ctx;
@@ -574,10 +581,7 @@
             btn.style.backgroundColor = isReady ? '#ff0055' : '#00ff66';
             btn.style.boxShadow = isReady ? '0 5px 0 #990033' : '0 5px 0 #00993d';
 
-            fetch("https://" + titleId + ".playfabapi.com/Client/ExecuteCloudScript", {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': sessionTicket },
-                body: JSON.stringify({ FunctionName: "SetReady", FunctionParameter: { roomId: roomCode, ready: isReady } })
-            }).catch(() => {});
+            sendPlayerDataToPlayFab();
         }
 
         function submitTeamName() {
@@ -607,19 +611,8 @@
             btn.style.boxShadow = "0 5px 0 #222";
             btn.disabled = true;
 
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(response => {
-                    if (response === 'granted') {
-                        window.addEventListener('devicemotion', handleMotion);
-                        document.getElementById('sensorStatus').innerText = "Sensori attivi!";
-                        document.getElementById('sensorStatus').style.color = "#00ff66";
-                    }
-                }).catch(() => {});
-            } else {
-                window.addEventListener('devicemotion', handleMotion);
-                document.getElementById('sensorStatus').innerText = "Sensori attivi!";
-                document.getElementById('sensorStatus').style.color = "#00ff66";
-            }
+            document.getElementById('sensorStatus').innerText = "Pronto registrato!";
+            document.getElementById('sensorStatus').style.color = "#00ff66";
 
             sendPlayerDataToPlayFab();
         }
@@ -644,9 +637,15 @@
                     if (data.data.Data["SelectedGame"]) {
                         var chosenGame = data.data.Data["SelectedGame"].Value;
                         document.getElementById('tutorialTitle').innerText = chosenGame.toUpperCase();
+                        
+                        let descElem = document.getElementById('tutorialDesc');
+                        if (chosenGame.toLowerCase().includes("words fight")) {
+                            descElem.innerText = "30 secondi, una categoria, la mente più veloce!";
+                        } else {
+                            descElem.innerText = "Segui le istruzioni sullo schermo!";
+                        }
                     }
                     
-                    // Lettura categorie Words Fight
                     if (data.data.Data["WfCategories"]) {
                         try {
                             var wrapper = JSON.parse(data.data.Data["WfCategories"].Value);
@@ -662,7 +661,6 @@
                         }
                     }
                     
-                    // Categoria vincente Words Fight
                     if (data.data.Data["WfWinningCategory"]) {
                         document.getElementById('wf-titolo-categoria').innerText = data.data.Data["WfWinningCategory"].Value.toUpperCase();
                     }
@@ -707,6 +705,14 @@
             } else if (state === "TUTORIAL") {
                 targetScreen = document.getElementById('screen-tutorial');
                 
+                isMinigameReady = false;
+                let btn = document.getElementById('minigameReadyBtn');
+                btn.innerText = "SONO PRONTO!";
+                btn.style.backgroundColor = "#00ff66";
+                btn.style.boxShadow = "0 5px 0 #00993d";
+                btn.disabled = false;
+                document.getElementById('sensorStatus').innerText = "";
+
                 wfCurrentVote = -1;
                 wfLastWord = "";
                 document.querySelectorAll('.wf-btn-categoria').forEach(b => {
@@ -730,6 +736,9 @@
             } else if (state === "WORDS_FIGHT_ARENA") {
                 targetScreen = document.getElementById('screen-wf-arena');
                 document.getElementById('wf-campo-parola').value = "";
+            } else if (state === "WORDS_FIGHT_SCORE") {
+                targetScreen = document.getElementById('screen-wf-score');
+                document.getElementById('wf-final-score').innerText = wfLocalScore || 0;
             }
 
             if (targetScreen) {
@@ -751,28 +760,6 @@
             }, 1000);
         }
 
-        function handleMotion(e) {
-            if (currentGameState !== "PLAYING") return;
-            var acc = e.accelerationIncludingGravity;
-            if (!acc) return;
-
-            var currentTime = Date.now();
-            if (currentTime - lastShakeTime > 100) {
-                var threshold = 15;
-                var movement = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
-
-                if (movement > threshold) {
-                    localShakes++;
-                    lastShakeTime = currentTime;
-                    document.getElementById('scoreDisplay').innerText = localShakes;
-                    if (navigator.vibrate) { navigator.vibrate(35); }
-
-                    sendPlayerDataToPlayFab();
-                }
-            }
-        }
-
-        // --- METODI PER WORDS FIGHT ---
         function inviaVotoWF(indice) {
             wfCurrentVote = indice;
             
@@ -791,6 +778,7 @@
 
             if (parola !== "") {
                 wfLastWord = parola;
+                wfLocalScore++; // Incrementa il punteggio locale se invia una parola valida
                 sendPlayerDataToPlayFab();
                 
                 input.value = ""; 
