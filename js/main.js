@@ -59,6 +59,14 @@ window.onload = function() {
     setupCropListeners();
     setupPictionaryCanvas();
 
+    // Collegamento pulito per l'input file dell'avatar (risolve l'errore di caricamento foto)
+    let fileInputEl = document.getElementById('fileInput');
+    if (fileInputEl) {
+        fileInputEl.addEventListener('change', function(e) {
+            initCrop(this);
+        });
+    }
+
     // Funzioni globali per i bottoni HTML
     window.joinRoom = joinRoom;
     window.confirmCrop = confirmCrop;
