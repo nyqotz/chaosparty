@@ -59,7 +59,7 @@ window.onload = function() {
     setupCropListeners();
     setupPictionaryCanvas();
 
-    // Collegamento pulito per l'input file dell'avatar (risolve l'errore di caricamento foto)
+    // Collegamento pulito per l'input file dell'avatar
     let fileInputEl = document.getElementById('fileInput');
     if (fileInputEl) {
         fileInputEl.addEventListener('change', function(e) {
@@ -259,9 +259,11 @@ function initCrop(input) {
             imgScale = Math.max(scaleX, scaleY);
 
             let slider = document.getElementById('zoomRange');
-            slider.min = imgScale * 0.5;
-            slider.max = imgScale * 3;
-            slider.value = imgScale;
+            if(slider) {
+                slider.min = imgScale * 0.5;
+                slider.max = imgScale * 3;
+                slider.value = imgScale;
+            }
 
             imgX = (renderSize - cropImage.width * imgScale) / 2;
             imgY = (renderSize - cropImage.height * imgScale) / 2;
@@ -286,13 +288,15 @@ function drawCanvas() {
 function setupCropListeners() {
     let container = document.getElementById('cropContainer');
     function getClientPos(e) { return e.touches ? e.touches[0] : e; }
-    container.addEventListener('mousedown', (e) => { startDrag(getClientPos(e)); });
-    container.addEventListener('mousemove', (e) => { onDrag(getClientPos(e)); });
-    container.addEventListener('mouseup', endDrag);
-    container.addEventListener('mouseleave', endDrag);
-    container.addEventListener('touchstart', (e) => { startDrag(getClientPos(e)); }, {passive: true});
-    container.addEventListener('touchmove', (e) => { onDrag(getClientPos(e)); }, {passive: true});
-    container.addEventListener('touchend', endDrag);
+    if(container) {
+        container.addEventListener('mousedown', (e) => { startDrag(getClientPos(e)); });
+        container.addEventListener('mousemove', (e) => { onDrag(getClientPos(e)); });
+        container.addEventListener('mouseup', endDrag);
+        container.addEventListener('mouseleave', endDrag);
+        container.addEventListener('touchstart', (e) => { startDrag(getClientPos(e)); }, {passive: true});
+        container.addEventListener('touchmove', (e) => { onDrag(getClientPos(e)); }, {passive: true});
+        container.addEventListener('touchend', endDrag);
+    }
 }
 
 function startDrag(e) {
@@ -324,14 +328,15 @@ function adjustZoom(val) {
 
 function confirmCrop() {
     let finalCanvas = document.createElement('canvas');
-    let finalSize = 60; 
+    let finalSize = 80; 
     finalCanvas.width = finalSize;
     finalCanvas.height = finalSize;
     let finalCtx = finalCanvas.getContext('2d');
     finalCtx.drawImage(canvas, 0, 0, renderSize, renderSize, 0, 0, finalSize, finalSize);
 
-    avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.5);
-    document.getElementById('avatarPreview').src = avatarBase64;
+    avatarBase64 = finalCanvas.toDataURL('image/jpeg', 0.6);
+    let preview = document.getElementById('avatarPreview');
+    if(preview) preview.src = avatarBase64;
 
     document.getElementById('screen-crop').classList.remove('active');
     document.getElementById('screen-profile').classList.add('active');
