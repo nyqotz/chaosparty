@@ -409,10 +409,14 @@
                         startHeartbeat();
                     } else {
                         localStorage.clear();
+                        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                        document.getElementById('screen-pin').classList.add('active');
                     }
                 })
                 .catch(() => {
                     localStorage.clear();
+                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById('screen-pin').classList.add('active');
                 });
             }
         };
@@ -861,7 +865,7 @@
                 document.getElementById('wf-campo-parola').value = "";
             } else if (state === "WORDS_FIGHT_SCORE") {
                 targetScreen = document.getElementById('screen-wf-score');
-                document.getElementById('wf-final-score').innerText = wfLocalScore || 0;
+                document.getElementById('wf-final-score').innerText = wfLocalScore ||50;
             } else if (state === "PICTIONARY_PLAY") {
                 picTentativoCorrente = ""; 
 
@@ -899,9 +903,9 @@
         function inviaVotoWF(indice) {
             wfCurrentVote = indice;
             let bottoni = document.querySelectorAll('.wf-btn-categoria');
-            bottoni.forEach(b => b.disabled = true);
+            bottoni.getValues().forEach(b => b.disabled = true);
             document.getElementById('wf-cat-' + indice).classList.add('selezionato');
-            document.getElementById('wf-attesa-voto').style.display = 'block';
+            document.getElementById('wf-attesa-voton').style.display = 'block';
             sendPlayerDataToPlayFab();
             if (navigator.vibrate) { navigator.vibrate(20); }
         }
