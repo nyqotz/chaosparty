@@ -340,14 +340,14 @@
         var wfLastWord = "";
         var wfLocalScore = 0;
 
-        // Variabili Pictionary (con supporto throttling tempo reale)
+        // Variabili Pictionary
         var picTentativoCorrente = "";
         var picBase64 = "";
         var picCanvas, picCtx;
         var isDrawing = false;
         var picLastX = 0, picLastY = 0;
         var picLastSyncTime = 0;
-        var picSyncIntervalMs = 250; // Invia aggiornamenti ogni 250ms mentre disegna
+        var picSyncIntervalMs = 250;
         
         var picSquadraAttiva = "";
         var picDisegnatore = "";
@@ -417,7 +417,6 @@
             }
         };
 
-        // ----- FUNZIONI PICTIONARY ----- //
         function setupPictionaryCanvas() {
             picCanvas = document.getElementById('drawingCanvas');
             if (!picCanvas) return;
@@ -467,7 +466,6 @@
             picLastX = x;
             picLastY = y;
 
-            // Falso tempo reale: invia dati a intervalli regolari (ogni 250ms)
             if (Date.now() - picLastSyncTime > picSyncIntervalMs) {
                 syncDrawingToPlayFab();
                 picLastSyncTime = Date.now();
@@ -499,7 +497,6 @@
                 if (navigator.vibrate) navigator.vibrate(20);
             }
         }
-        // ------------------------------- //
 
         function joinRoom() {
             var btn = document.getElementById('btnAvanti');
@@ -868,15 +865,17 @@
             } else if (state === "PICTIONARY_PLAY") {
                 picTentativoCorrente = ""; 
 
+                let myRoleScreen = document.getElementById('screen-pic-wait'); // Default attesa
+
                 if (playFabId === picDisegnatore) {
-                    targetScreen = document.getElementById('screen-pic-draw');
-                    document.getElementById('pic-parola-segreta').innerText = picParolaSegreta.toUpperCase();
+                    myRoleScreen = document.getElementById('screen-pic-draw');
+                    document.getElementById('pic-parola-segreta').innerText = picParolaSegreta ? picParolaSegreta.toUpperCase() : "---";
                     pulisciTela(false); 
-                } else if (myTeamColor.toUpperCase() === picSquadraAttiva.toUpperCase()) {
-                    targetScreen = document.getElementById('screen-pic-guess');
-                } else {
-                    targetScreen = document.getElementById('screen-pic-wait');
+                } else if (myTeamColor && picSquadraAttiva && myTeamColor.toUpperCase() === picSquadraAttiva.toUpperCase()) {
+                    myRoleScreen = document.getElementById('screen-pic-guess');
                 }
+
+                targetScreen = myRoleScreen;
             }
 
             if (targetScreen) {
