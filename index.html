@@ -758,7 +758,7 @@
 
                     if (data.data.Data["GlobalState"]) {
                         var newState = data.data.Data["GlobalState"].Value;
-                        if (newState !== currentGameState) {
+                        if (newState !== currentGameState || newState === "PICTIONARY_PLAY") {
                             currentGameState = newState;
                             handleStateChange(currentGameState);
                         }
@@ -865,17 +865,20 @@
                 document.getElementById('wf-campo-parola').value = "";
             } else if (state === "WORDS_FIGHT_SCORE") {
                 targetScreen = document.getElementById('screen-wf-score');
-                document.getElementById('wf-final-score').innerText = wfLocalScore ||50;
+                document.getElementById('wf-final-score').innerText = wfLocalScore || 0;
             } else if (state === "PICTIONARY_PLAY") {
                 picTentativoCorrente = ""; 
 
                 let myRoleScreen = document.getElementById('screen-pic-wait'); // Default attesa
 
+                // Confronto case-insensitive sicuro per le squadre ("Sinistra" o "Destra")
+                let isMyTeamActive = myTeamColor && picSquadraAttiva && myTeamColor.toLowerCase() === picSquadraAttiva.toLowerCase();
+
                 if (playFabId === picDisegnatore) {
                     myRoleScreen = document.getElementById('screen-pic-draw');
                     document.getElementById('pic-parola-segreta').innerText = picParolaSegreta ? picParolaSegreta.toUpperCase() : "---";
                     pulisciTela(false); 
-                } else if (myTeamColor && picSquadraAttiva && myTeamColor.toUpperCase() === picSquadraAttiva.toUpperCase()) {
+                } else if (isMyTeamActive) {
                     myRoleScreen = document.getElementById('screen-pic-guess');
                 }
 
@@ -903,9 +906,9 @@
         function inviaVotoWF(indice) {
             wfCurrentVote = indice;
             let bottoni = document.querySelectorAll('.wf-btn-categoria');
-            bottoni.getValues().forEach(b => b.disabled = true);
+            bottoni.forEach(b => b.disabled = true);
             document.getElementById('wf-cat-' + indice).classList.add('selezionato');
-            document.getElementById('wf-attesa-voton').style.display = 'block';
+            document.getElementById('wf-attesa-voto').style.display = 'block';
             sendPlayerDataToPlayFab();
             if (navigator.vibrate) { navigator.vibrate(20); }
         }
